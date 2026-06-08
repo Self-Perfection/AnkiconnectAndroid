@@ -24,3 +24,8 @@ render.experimental.xml
 *.keystore
 *.hprof
 app/src/main/jniLibs/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
