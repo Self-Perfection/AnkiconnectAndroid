@@ -366,6 +366,25 @@ public class IntegratedAPI {
         return mediaAPI.storeMediaFile(binaryFile.getFilename(), binaryFile.getData());
     }
 
+    /**
+     * Delete the given notes (and their cards).
+     *
+     * The AnkiDroid ContentProvider supports note deletion only on the
+     * single-note URI ({@code notes/<id>}); the bulk URIs throw
+     * {@link UnsupportedOperationException}. Therefore we loop over the ids and
+     * delete them one at a time.
+     *
+     * Note: actual runtime support depends on the AnkiDroid version installed on
+     * the device. Per the provider source (CardContentProvider) it is supported.
+     */
+    public void deleteNotes(List<Long> noteIds) {
+        for (Long noteId : noteIds) {
+            Uri noteUri = Uri.withAppendedPath(
+                    FlashCardsContract.Note.CONTENT_URI, String.valueOf(noteId));
+            context.getContentResolver().delete(noteUri, null, null);
+        }
+    }
+
     public ArrayList<Long> guiBrowse(String query) {
         // https://github.com/ankidroid/Anki-Android/pull/11899
         Uri webpage = Uri.parse("anki://x-callback-url/browser?search=" + query);

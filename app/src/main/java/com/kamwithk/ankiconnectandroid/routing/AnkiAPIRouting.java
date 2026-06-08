@@ -15,10 +15,8 @@ import com.kamwithk.ankiconnectandroid.request_parsers.MediaRequest;
 
 import fi.iki.elonen.NanoHTTPD;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -84,8 +82,14 @@ public class AnkiAPIRouting {
                 }
 
                 return Parser.gson.toJson(results);
+            case "requestPermission":
+                return requestPermission();
+            case "deleteNotes":
+                return deleteNotes(raw_json);
             default:
-                return default_version();
+                // An unknown/unsupported action yields a clean error response instead
+                // of the bogus "AnkiConnect v.6" string that fails JSON parsing.
+                throw new Exception("unsupported action: " + Parser.get_action(raw_json));
         }
     }
     /* taken from anki-connect's web.py: format_success_reply */
@@ -107,22 +111,20 @@ public class AnkiAPIRouting {
             Log.d("AnkiConnectAndroid", "response json: " + response);
             return returnResponse(response);
         } catch (Exception e) {
+            // Log the full stack trace for diagnostics, but only return a
+            // human-readable message to the client. Leaking the stack trace into
+            // the "error" field both breaks clients and exposes internals.
+            Log.e("AnkiConnectAndroid", "Error handling request", e);
+
             Map<String, String> response = new HashMap<>();
             response.put("result", null);
 
-            StringWriter sw = new StringWriter();
-            try {
-                try (PrintWriter pw = new PrintWriter(sw)) {
-                    e.printStackTrace(pw);
-                }
-                response.put("error", e.getMessage() + sw);
-            } finally {
-                try {
-                    sw.close();
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
+            String message = e.getMessage();
+            if (message == null || message.isEmpty()) {
+                message = e.getClass().getSimpleName();
             }
+            response.put("error", message);
+
             return newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "text/json", Parser.gson.toJson(response));
         }
     }
@@ -231,5 +233,25 @@ public class AnkiAPIRouting {
     private String notesInfo(JsonObject raw_json) throws Exception {
         ArrayList<Long> noteIds = Parser.getNoteIds(raw_json);
         return Parser.gson.toJson(integratedAPI.noteAPI.notesInfo(noteIds));
+    }
+
+    /**
+     * Mirrors desktop AnkiConnect's requestPermission. Returns a granted
+     * permission so that clients (e.g. the KOReader anki.koplugin) connect
+     * online instead of falling back to offline mode. No AnkiDroid call needed.
+     */
+    private String requestPermission() {
+        JsonObject result = new JsonObject();
+        result.addProperty("permission", "granted");
+        result.addProperty("requireApiKey", false);
+        result.addProperty("version", 6);
+        return Parser.gson.toJson(result);
+    }
+
+    private String deleteNotes(JsonObject raw_json) throws Exception {
+        List<Long> noteIds = Parser.getNoteIds(raw_json);
+        integratedAPI.deleteNotes(noteIds);
+        // Desktop AnkiConnect's deleteNotes returns null.
+        return "null";
     }
 }
