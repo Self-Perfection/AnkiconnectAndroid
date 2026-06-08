@@ -3,34 +3,55 @@
 Behavioral tests for AnkiconnectAndroid. They talk to a **real device**
 running the app and AnkiDroid over HTTP — there is no emulator and no mocking.
 
-## Running in Termux (on the device)
+## Running with uv (recommended — no pip)
+
+Each `test_*.py` carries its dependencies inline (PEP 723), so [uv](https://docs.astral.sh/uv/)
+resolves `pytest`/`requests` automatically in an ephemeral environment. No
+`pip install`, no venv:
 
 ```sh
-pkg install python
+uv run test_koplugin.py        # one file
+uv run test_smoke.py
+uv run test_errors.py
+```
+
+In Termux: `pkg install uv` (or the official installer), then the same
+`uv run <file>` commands.
+
+## Running with pytest directly
+
+If you already have `pytest` and `requests` installed:
+
+```sh
 pip install pytest requests
-ANKI_CONNECT_URL=http://localhost:8765 pytest
+pytest                          # whole suite
 ```
 
-## Running from a PC against the phone
-
-Point the client at the phone's IP (the app must be reachable on the network):
+## Pointing at the device
 
 ```sh
-ANKI_CONNECT_URL=http://<phone-ip>:8765 pytest
+ANKI_CONNECT_URL=http://<phone-ip>:8765 uv run test_koplugin.py
 ```
 
-`ANKI_CONNECT_URL` defaults to `http://localhost:8765` when unset.
+`ANKI_CONNECT_URL` defaults to `http://localhost:8765` when unset (e.g. when
+running inside Termux on the device itself).
 
 If the server is unreachable the tests are **skipped** with a clear message
 rather than failing with a connection traceback.
 
 ## Layout
 
-| File            | Purpose                                                              |
-| --------------- | -------------------------------------------------------------------- |
-| `client.py`     | Thin client: `invoke(action, **params)` over the AnkiConnect JSON API |
-| `conftest.py`   | Fixtures: base URL, an `anki` invoke fixture, test-note cleanup       |
-| `test_smoke.py` | Smoke tests: `version`, `deckNames`, `modelNames`                    |
+| File               | Purpose                                                               |
+| ------------------ | --------------------------------------------------------------------- |
+| `client.py`        | Thin client: `invoke(action, **params)` over the AnkiConnect JSON API |
+| `conftest.py`      | Fixtures: base URL, an `anki` invoke fixture, test-note cleanup        |
+| `test_smoke.py`    | Smoke tests: `version`, `deckNames`, `modelNames`                     |
+| `test_errors.py`   | Unsupported action returns a clean error (no Java stack trace)        |
+| `test_koplugin.py` | koplugin scenario: requestPermission → addNote → notesInfo → deleteNotes |
+
+`client.py` and `conftest.py` are imported (not run directly), so they carry
+no inline dependency block; they run inside the environment of whichever
+`test_*.py` you launch.
 
 Notes created by tests are tagged `acandroid_test`; the `cleanup_notes`
 fixture removes them via `deleteNotes` after each test.
