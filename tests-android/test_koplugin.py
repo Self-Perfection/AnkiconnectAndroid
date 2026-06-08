@@ -16,11 +16,15 @@ from conftest import TEST_TAG
 
 
 def test_request_permission(anki):
-    # koplugin's is_running() checks result.permission != "denied".
+    # koplugin's is_running() only checks result.permission != "denied", so that
+    # is the one hard requirement. requireApiKey/version are optional extras that
+    # real AnkiConnect does not always include, so assert them only if present.
     result = anki("requestPermission")
     assert result["permission"] == "granted"
-    assert result["requireApiKey"] is False
-    assert str(result["version"]) == "6"
+    if "requireApiKey" in result:
+        assert isinstance(result["requireApiKey"], bool)
+    if "version" in result:
+        assert str(result["version"]) == "6"
 
 
 def test_koplugin_add_info_delete(anki, cleanup_notes):
@@ -28,14 +32,15 @@ def test_koplugin_add_info_delete(anki, cleanup_notes):
     permission = anki("requestPermission")
     assert permission["permission"] == "granted"
 
-    # 2. addNote. koplugin sends a top-level "key" field alongside the note.
+    # 2. addNote. The key (if any) is supplied via ANKI_CONNECT_KEY and added
+    # automatically by the client; AnkiconnectAndroid normally needs none.
     note = {
         "deckName": "Default",
         "modelName": "Basic",
         "fields": {"Front": "koplugin front", "Back": "koplugin back"},
         "tags": [TEST_TAG],
     }
-    note_id = anki("addNote", note=note, key="")
+    note_id = anki("addNote", note=note)
     assert note_id is not None
     note_id = int(note_id)
 

@@ -39,6 +39,28 @@ running inside Termux on the device itself).
 If the server is unreachable the tests are **skipped** with a clear message
 rather than failing with a connection traceback.
 
+### API key
+
+Set `ANKI_CONNECT_KEY` if the server requires one; the client adds it to every
+request automatically. AnkiconnectAndroid normally needs no key, so leave it
+unset there.
+
+## Validating the suite against desktop AnkiConnect (gold standard)
+
+To check that the tests themselves are correct, point them at a real desktop
+AnkiConnect — a known-good server should pass:
+
+```sh
+ANKI_CONNECT_URL=http://localhost:8765 ANKI_CONNECT_KEY=<your-key> uv run test_koplugin.py
+```
+
+Two intentional differences from AnkiDroid:
+
+- `requestPermission` only guarantees `permission`; `requireApiKey`/`version`
+  are checked only when present, because desktop does not always return them.
+- `test_errors.py` **skips** when `getProfiles` works (desktop supports it):
+  the clean-error-for-unsupported-action behaviour is AnkiDroid-specific.
+
 ## Layout
 
 | File               | Purpose                                                               |

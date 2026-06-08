@@ -16,10 +16,18 @@ import client
 def test_unsupported_action_clean_error(anki):
     # getProfiles is not supported on AnkiDroid; it should produce a clean,
     # human-readable error string rather than a Java stack trace dump.
-    with pytest.raises(client.AnkiConnectError) as exc_info:
+    #
+    # On a server where getProfiles IS supported (e.g. desktop AnkiConnect, used
+    # as the gold standard to validate this suite) there is no error to inspect,
+    # so skip: graceful degradation is an AnkiDroid-specific property.
+    try:
         anki("getProfiles")
+    except client.AnkiConnectError as exc:
+        message = str(exc)
+    else:
+        pytest.skip("getProfiles is supported on this server; the clean-error "
+                    "behaviour under test is AnkiDroid-specific")
 
-    message = str(exc_info.value)
     assert "unsupported action" in message
     assert "getProfiles" in message
     # No stack-trace artefacts.
