@@ -261,10 +261,13 @@ public class IntegratedAPI {
         Long note_id = noteAPI.addNote(data, deck_id, model_id, tags);
 
         if (note_id != null) {
-            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Card added", Toast.LENGTH_SHORT).show());
+            // TODO: include the new note's sort field value in the toast (e.g.
+            // "Note added: <sort field>") so the user can tell at a glance what
+            // was just added, instead of a generic message.
+            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Note added", Toast.LENGTH_SHORT).show());
             return note_id;
         } else {
-            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Failed to add card", Toast.LENGTH_SHORT).show());
+            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Failed to add note", Toast.LENGTH_SHORT).show());
             throw new Exception("Couldn't add note");
         }
     }
