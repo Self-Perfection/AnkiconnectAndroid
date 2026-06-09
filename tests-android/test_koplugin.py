@@ -12,7 +12,7 @@ cleanly via the ``anki`` fixture in conftest.py.
 Run directly with uv (no pip needed): ``uv run test_koplugin.py``.
 """
 
-from conftest import TEST_TAG
+from conftest import TEST_DECK, TEST_TAG
 
 
 def test_request_permission(anki):
@@ -35,7 +35,7 @@ def test_koplugin_add_info_delete(anki, cleanup_notes):
     # 2. addNote. The key (if any) is supplied via ANKI_CONNECT_KEY and added
     # automatically by the client; AnkiconnectAndroid normally needs none.
     note = {
-        "deckName": "Default",
+        "deckName": TEST_DECK,
         "modelName": "Basic",
         "fields": {"Front": "koplugin front", "Back": "koplugin back"},
         "tags": [TEST_TAG],

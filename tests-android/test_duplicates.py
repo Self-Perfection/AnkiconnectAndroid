@@ -15,12 +15,12 @@ Run directly with uv (no pip needed): ``uv run test_duplicates.py``.
 import pytest
 
 import client
-from conftest import TEST_TAG
+from conftest import TEST_DECK, TEST_TAG
 
 
 def _note(front, back, *, allow_duplicate=None):
     note = {
-        "deckName": "Default",
+        "deckName": TEST_DECK,
         "modelName": "Basic",
         "fields": {"Front": front, "Back": back},
         "tags": [TEST_TAG],

@@ -6,6 +6,8 @@ unreachable, tests that depend on it are skipped with a clear message
 rather than erroring out.
 """
 
+import os
+
 import pytest
 import requests
 
@@ -14,10 +16,20 @@ import client
 # Notes created by the suite are tagged with this so they can be cleaned up.
 TEST_TAG = "acandroid_test"
 
+# Deck the suite adds notes to. Override with ANKI_TEST_DECK; defaults to the
+# always-present "Default" deck.
+TEST_DECK = os.environ.get("ANKI_TEST_DECK", "Default")
+
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
     return client.base_url()
+
+
+@pytest.fixture(scope="session")
+def deck_name() -> str:
+    """Deck the tests add notes to (ANKI_TEST_DECK, default 'Default')."""
+    return TEST_DECK
 
 
 @pytest.fixture(scope="session")

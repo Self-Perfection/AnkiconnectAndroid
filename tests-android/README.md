@@ -36,6 +36,14 @@ ANKI_CONNECT_URL=http://<phone-ip>:8765 uv run test_koplugin.py
 `ANKI_CONNECT_URL` defaults to `http://localhost:8765` when unset (e.g. when
 running inside Termux on the device itself).
 
+### Deck
+
+Tests add notes to the `Default` deck. Override with `ANKI_TEST_DECK`:
+
+```sh
+ANKI_TEST_DECK="My Test Deck" uv run test_koplugin.py
+```
+
 If the server is unreachable the tests are **skipped** with a clear message
 rather than failing with a connection traceback.
 
