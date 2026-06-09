@@ -9,7 +9,6 @@ import com.kamwithk.ankiconnectandroid.ankidroid_api.DeckAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.IntegratedAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.MediaAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.ModelAPI;
-import com.kamwithk.ankiconnectandroid.ankidroid_api.Utility;
 import com.kamwithk.ankiconnectandroid.request_parsers.NoteRequest;
 import com.kamwithk.ankiconnectandroid.request_parsers.Parser;
 import com.kamwithk.ankiconnectandroid.request_parsers.MediaRequest;
@@ -198,19 +197,20 @@ public class AnkiAPIRouting {
      * AnkiConnect desktop also supports other formats, but this method only supports downloadable media files.
      */
     private String addNote(JsonObject raw_json) throws Exception {
-        // Validate like AnkiConnect before inserting. An empty first field is
-        // always rejected (even with allowDuplicate); a duplicate is rejected
-        // unless options.allowDuplicate is set. isDuplicate honours the
-        // duplicateScope, including the "deck" scope koplugin uses by default.
-        NoteRequest noteRequest = Parser.getSingleNoteRequest(raw_json);
-        if (Utility.isFieldEmpty(noteRequest.getFieldValue())) {
-            throw new Exception("cannot create note because it is empty");
-        }
-        if (!noteRequest.getOptions().isAllowDuplicate() && integratedAPI.isDuplicate(noteRequest)) {
-            throw new Exception("cannot create note because it is a duplicate");
-        }
-
         Map<String, String> noteValues = Parser.getNoteValues(raw_json);
+
+        // Validate like AnkiConnect before inserting. validateCanAdd rejects an
+        // empty first field (even with allowDuplicate) and, unless
+        // allowDuplicate is set, a duplicate within the duplicateScope ("deck"
+        // is koplugin's default). The duplicate key uses the model's field
+        // order, not JSON key order.
+        NoteRequest noteRequest = Parser.getSingleNoteRequest(raw_json);
+        integratedAPI.validateCanAdd(
+                noteValues,
+                Parser.getModelName(raw_json),
+                Parser.getDeckName(raw_json),
+                noteRequest.getOptions()
+        );
 
         ArrayList<MediaRequest> mediaRequests =
                 Parser.getNoteMediaRequests(raw_json);

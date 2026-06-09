@@ -247,44 +247,60 @@ public class IntegratedAPI {
     }
 
     /**
-     * Whether adding {@code note} would create a duplicate, honouring its
-     * duplicateScope. Matches AnkiConnect: a duplicate is a note with the same
-     * first (sort) field and model; with scope "deck" the match must also live
-     * in the target deck. Empty notes are not treated as duplicates here (the
-     * caller rejects those separately).
+     * Validate a note the way AnkiConnect does before inserting, throwing on
+     * failure:
+     * <ul>
+     *   <li>"cannot create note because it is empty" when the first (sort)
+     *       field is empty, regardless of allowDuplicate;</li>
+     *   <li>"cannot create note because it is a duplicate" when a note with the
+     *       same first field and model already exists in scope, unless
+     *       allowDuplicate is set.</li>
+     * </ul>
+     *
+     * The duplicate key is the model's <em>first field</em> ({@code flds[0]},
+     * which is what AnkiDroid checksums), looked up from {@code fields} by the
+     * model's field order — not by JSON key order, which clients like
+     * anki.koplugin do not send in any particular order.
      */
-    public boolean isDuplicate(NoteRequest note) throws Exception {
-        String firstField = note.getFieldValue();
-        if (Utility.isFieldEmpty(firstField)) {
-            return false;
-        }
-
-        Long modelId = modelAPI.modelNamesAndIds(0).get(note.getModelName());
+    public void validateCanAdd(Map<String, String> fields, String modelName,
+                               String deckName, NoteRequest.NoteOptions options) throws Exception {
+        Long modelId = modelAPI.modelNamesAndIds(0).get(modelName);
         if (modelId == null) {
             // Unknown model: let the add proceed and fail later if it must.
-            return false;
+            return;
+        }
+        String[] fieldNames = api.getFieldList(modelId);
+        if (fieldNames == null || fieldNames.length == 0) {
+            return;
+        }
+
+        String firstField = fields.getOrDefault(fieldNames[0], "");
+        if (Utility.isFieldEmpty(firstField)) {
+            throw new Exception("cannot create note because it is empty");
+        }
+        if (options.isAllowDuplicate()) {
+            return;
         }
 
         Set<Long> duplicateIds =
                 noteIdsWithChecksum(modelId, Utility.getFieldChecksum(firstField));
         if (duplicateIds.isEmpty()) {
-            return false;
+            return;
         }
 
-        if (!"deck".equals(note.getOptions().getDuplicateScope())) {
+        if (!"deck".equals(options.getDuplicateScope())) {
             // Collection-wide scope: any same-model match is a duplicate.
-            return true;
+            throw new Exception("cannot create note because it is a duplicate");
         }
 
         // Deck scope: a match counts only if it is in the target deck. Use a
         // findNotes("deck:...") query rather than per-note card lookups.
-        String deckQuery = "deck:" + NoteAPI.escapeQueryStr(note.getDeckName());
+        String deckQuery = "deck:" + NoteAPI.escapeQueryStr(deckName);
         for (Long idInDeck : noteAPI.findNotes(deckQuery)) {
             if (duplicateIds.contains(idInDeck)) {
-                return true;
+                throw new Exception("cannot create note because it is a duplicate");
             }
         }
-        return false;
     }
 
     public static class CanAddWithError {

@@ -66,6 +66,26 @@ def test_addnote_rejects_duplicate_deck_scope(anki, cleanup_notes):
     assert "duplicate" in str(exc_info.value).lower()
 
 
+def test_addnote_detects_duplicate_regardless_of_field_order(anki, cleanup_notes):
+    # The duplicate key must be the model's first field, not the first key in
+    # the JSON "fields" object. Clients like anki.koplugin build fields from an
+    # unordered table, so the second request sends Back before Front here.
+    front = "acandroid field-order probe"
+
+    first = anki("addNote", note=_note(front, "back one"))
+    assert first is not None
+
+    reordered = {
+        "deckName": TEST_DECK,
+        "modelName": "Basic",
+        "fields": {"Back": "back two", "Front": front},  # Front not first
+        "tags": [TEST_TAG],
+    }
+    with pytest.raises(client.AnkiConnectError) as exc_info:
+        anki("addNote", note=reordered)
+    assert "duplicate" in str(exc_info.value).lower()
+
+
 def test_addnote_rejects_empty_first_field(anki):
     # An empty first (sort) field is rejected with a distinct "empty" message,
     # even though allowDuplicate would not help here.
