@@ -350,15 +350,30 @@ public class IntegratedAPI {
         Long note_id = noteAPI.addNote(data, deck_id, model_id, tags);
 
         if (note_id != null) {
-            // TODO: include the new note's sort field value in the toast (e.g.
-            // "Note added: <sort field>") so the user can tell at a glance what
-            // was just added, instead of a generic message.
-            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Note added", Toast.LENGTH_SHORT).show());
+            // Show the first field's text so the user can tell what was added.
+            String firstField = firstFieldText(model_id, data);
+            final String message = firstField.isEmpty() ? "Note added" : "Note added: " + firstField;
+            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show());
             return note_id;
         } else {
             new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Failed to add note", Toast.LENGTH_SHORT).show());
             throw new Exception("Couldn't add note");
         }
+    }
+
+    /**
+     * Plain text of the model's first field for the given data, for display.
+     * Empty string if the model or its fields can't be resolved.
+     */
+    private String firstFieldText(Long modelId, Map<String, String> data) {
+        if (modelId == null) {
+            return "";
+        }
+        String[] fieldNames = api.getFieldList(modelId);
+        if (fieldNames == null || fieldNames.length == 0) {
+            return "";
+        }
+        return Utility.stripToText(data.getOrDefault(fieldNames[0], ""));
     }
 
     /**

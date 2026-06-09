@@ -52,11 +52,19 @@ public final class Utility {
     }
 
     /**
+     * A field's plain text: HTML/media stripped and trimmed. Empty string for
+     * null input.
+     */
+    public static String stripToText(String data) {
+        return data == null ? "" : stripHTMLMedia(data).trim();
+    }
+
+    /**
      * Whether a field is empty once HTML/media are stripped, matching how Anki
-     * decides a note's first (sort) field is empty.
+     * decides a note's first field is empty.
      */
     public static boolean isFieldEmpty(String data) {
-        return data == null || stripHTMLMedia(data).trim().isEmpty();
+        return stripToText(data).isEmpty();
     }
 
     private static String stripHTMLMedia(String s) {
