@@ -9,6 +9,7 @@ import com.kamwithk.ankiconnectandroid.ankidroid_api.DeckAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.IntegratedAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.MediaAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.ModelAPI;
+import com.kamwithk.ankiconnectandroid.ankidroid_api.Utility;
 import com.kamwithk.ankiconnectandroid.request_parsers.NoteRequest;
 import com.kamwithk.ankiconnectandroid.request_parsers.Parser;
 import com.kamwithk.ankiconnectandroid.request_parsers.MediaRequest;
@@ -197,10 +198,13 @@ public class AnkiAPIRouting {
      * AnkiConnect desktop also supports other formats, but this method only supports downloadable media files.
      */
     private String addNote(JsonObject raw_json) throws Exception {
-        // Reject duplicates (and empty notes) unless the request opts in via
-        // options.allowDuplicate, matching AnkiConnect. canAddNotes already
-        // honours allowDuplicate and the duplicate scope.
+        // Validate like AnkiConnect before inserting. An empty first field is
+        // always rejected (even with allowDuplicate); a duplicate is rejected
+        // unless options.allowDuplicate is set, which canAddNotes honours.
         NoteRequest noteRequest = Parser.getSingleNoteRequest(raw_json);
+        if (Utility.isFieldEmpty(noteRequest.getFieldValue())) {
+            throw new Exception("cannot create note because it is empty");
+        }
         ArrayList<NoteRequest> singleNote = new ArrayList<>();
         singleNote.add(noteRequest);
         ArrayList<Boolean> canAdd = integratedAPI.canAddNotes(singleNote);

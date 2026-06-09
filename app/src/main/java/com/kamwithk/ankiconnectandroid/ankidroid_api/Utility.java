@@ -51,6 +51,14 @@ public final class Utility {
         }
     }
 
+    /**
+     * Whether a field is empty once HTML/media are stripped, matching how Anki
+     * decides a note's first (sort) field is empty.
+     */
+    public static boolean isFieldEmpty(String data) {
+        return data == null || stripHTMLMedia(data).trim().isEmpty();
+    }
+
     private static String stripHTMLMedia(String s) {
         Matcher imgMatcher = IMG_PATTERN.matcher(s);
         return stripHTML(imgMatcher.replaceAll(" $1 "));

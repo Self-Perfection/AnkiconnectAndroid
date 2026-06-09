@@ -42,6 +42,16 @@ def test_addnote_rejects_duplicate_by_default(anki, cleanup_notes):
     assert "duplicate" in str(exc_info.value).lower()
 
 
+def test_addnote_rejects_empty_first_field(anki):
+    # An empty first (sort) field is rejected with a distinct "empty" message,
+    # even though allowDuplicate would not help here.
+    with pytest.raises(client.AnkiConnectError) as exc_info:
+        anki("addNote", note=_note("", "back", allow_duplicate=True))
+    message = str(exc_info.value).lower()
+    assert "empty" in message
+    assert "duplicate" not in message
+
+
 def test_addnote_allows_duplicate_when_opted_in(anki, cleanup_notes):
     front = "acandroid duplicate optin probe"
 
