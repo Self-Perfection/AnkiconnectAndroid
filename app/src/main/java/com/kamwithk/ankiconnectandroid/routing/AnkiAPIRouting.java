@@ -200,15 +200,13 @@ public class AnkiAPIRouting {
     private String addNote(JsonObject raw_json) throws Exception {
         // Validate like AnkiConnect before inserting. An empty first field is
         // always rejected (even with allowDuplicate); a duplicate is rejected
-        // unless options.allowDuplicate is set, which canAddNotes honours.
+        // unless options.allowDuplicate is set. isDuplicate honours the
+        // duplicateScope, including the "deck" scope koplugin uses by default.
         NoteRequest noteRequest = Parser.getSingleNoteRequest(raw_json);
         if (Utility.isFieldEmpty(noteRequest.getFieldValue())) {
             throw new Exception("cannot create note because it is empty");
         }
-        ArrayList<NoteRequest> singleNote = new ArrayList<>();
-        singleNote.add(noteRequest);
-        ArrayList<Boolean> canAdd = integratedAPI.canAddNotes(singleNote);
-        if (canAdd.isEmpty() || !canAdd.get(0)) {
+        if (!noteRequest.getOptions().isAllowDuplicate() && integratedAPI.isDuplicate(noteRequest)) {
             throw new Exception("cannot create note because it is a duplicate");
         }
 

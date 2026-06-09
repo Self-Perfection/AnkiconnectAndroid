@@ -18,15 +18,20 @@ import client
 from conftest import TEST_DECK, TEST_TAG
 
 
-def _note(front, back, *, allow_duplicate=None):
+def _note(front, back, *, allow_duplicate=None, duplicate_scope=None):
     note = {
         "deckName": TEST_DECK,
         "modelName": "Basic",
         "fields": {"Front": front, "Back": back},
         "tags": [TEST_TAG],
     }
+    options = {}
     if allow_duplicate is not None:
-        note["options"] = {"allowDuplicate": allow_duplicate}
+        options["allowDuplicate"] = allow_duplicate
+    if duplicate_scope is not None:
+        options["duplicateScope"] = duplicate_scope
+    if options:
+        note["options"] = options
     return note
 
 
@@ -39,6 +44,25 @@ def test_addnote_rejects_duplicate_by_default(anki, cleanup_notes):
     # Same first field, no allowDuplicate -> AnkiConnect rejects it.
     with pytest.raises(client.AnkiConnectError) as exc_info:
         anki("addNote", note=_note(front, "back two"))
+    assert "duplicate" in str(exc_info.value).lower()
+
+
+def test_addnote_rejects_duplicate_deck_scope(anki, cleanup_notes):
+    # Exactly how anki.koplugin adds notes by default: allowDuplicate=false,
+    # duplicateScope="deck". This is the scope our earlier tests missed.
+    front = "acandroid deck-scope probe"
+
+    first = anki(
+        "addNote",
+        note=_note(front, "back one", allow_duplicate=False, duplicate_scope="deck"),
+    )
+    assert first is not None
+
+    with pytest.raises(client.AnkiConnectError) as exc_info:
+        anki(
+            "addNote",
+            note=_note(front, "back two", allow_duplicate=False, duplicate_scope="deck"),
+        )
     assert "duplicate" in str(exc_info.value).lower()
 
 

@@ -214,6 +214,79 @@ public class IntegratedAPI {
         return false;
     }
 
+    /**
+     * Note IDs whose first-field checksum matches {@code checksum} within the
+     * same model. Uses the same CSUM query as canAddNotes (proven to work on
+     * device), but returns note IDs so the caller can filter by deck.
+     */
+    private Set<Long> noteIdsWithChecksum(long modelId, long checksum) {
+        Set<Long> ids = new HashSet<>();
+        String selection = String.format(
+                Locale.US,
+                "%s=%d and %s=%d",
+                FlashCardsContract.Note.MID, modelId,
+                FlashCardsContract.Note.CSUM, checksum
+        );
+        Cursor cursor = context.getContentResolver().query(
+                FlashCardsContract.Note.CONTENT_URI_V2,
+                new String[]{FlashCardsContract.Note._ID},
+                selection,
+                null,
+                null
+        );
+        if (cursor == null) {
+            return ids;
+        }
+        try (cursor) {
+            int idIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note._ID);
+            while (cursor.moveToNext()) {
+                ids.add(cursor.getLong(idIdx));
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * Whether adding {@code note} would create a duplicate, honouring its
+     * duplicateScope. Matches AnkiConnect: a duplicate is a note with the same
+     * first (sort) field and model; with scope "deck" the match must also live
+     * in the target deck. Empty notes are not treated as duplicates here (the
+     * caller rejects those separately).
+     */
+    public boolean isDuplicate(NoteRequest note) throws Exception {
+        String firstField = note.getFieldValue();
+        if (Utility.isFieldEmpty(firstField)) {
+            return false;
+        }
+
+        Long modelId = modelAPI.modelNamesAndIds(0).get(note.getModelName());
+        if (modelId == null) {
+            // Unknown model: let the add proceed and fail later if it must.
+            return false;
+        }
+
+        Set<Long> duplicateIds =
+                noteIdsWithChecksum(modelId, Utility.getFieldChecksum(firstField));
+        if (duplicateIds.isEmpty()) {
+            return false;
+        }
+
+        if (!"deck".equals(note.getOptions().getDuplicateScope())) {
+            // Collection-wide scope: any same-model match is a duplicate.
+            return true;
+        }
+
+        // Deck scope: a match counts only if it is in the target deck. Use a
+        // findNotes("deck:...") query rather than per-note card lookups.
+        String deckQuery = "deck:" + NoteAPI.escapeQueryStr(note.getDeckName());
+        for (Long idInDeck : noteAPI.findNotes(deckQuery)) {
+            if (duplicateIds.contains(idInDeck)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static class CanAddWithError {
         private final boolean canAdd;
         private final String error;
