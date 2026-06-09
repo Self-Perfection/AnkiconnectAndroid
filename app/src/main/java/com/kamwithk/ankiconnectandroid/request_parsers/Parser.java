@@ -107,6 +107,15 @@ public class Parser {
     }
 
     /**
+     * Parses the single "note" object of an addNote request into a NoteRequest,
+     * so the duplicate/options handling used by canAddNotes can be reused.
+     */
+    public static NoteRequest getSingleNoteRequest(JsonObject raw_data) {
+        JsonElement note = raw_data.get("params").getAsJsonObject().get("note");
+        return NoteRequest.fromJson(note);
+    }
+
+    /**
      * Gets the first field of the note
      */
     public static ArrayList<NoteRequest> getNoteFront(JsonObject raw_data) {

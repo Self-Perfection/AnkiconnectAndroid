@@ -94,8 +94,16 @@ public class NoteRequest {
         return tags;
     }
 
+    /**
+     * Default options when the request omits an "options" object: duplicates
+     * disallowed, checked by first field within the same model across the whole
+     * collection. Mirrors AnkiConnect's defaults.
+     */
+    private static final NoteOptions DEFAULT_OPTIONS =
+            new NoteOptions(false, "collection", null, false, false);
+
     public NoteOptions getOptions() {
-        return options;
+        return options != null ? options : DEFAULT_OPTIONS;
     }
 
     @NonNull
@@ -131,14 +139,19 @@ public class NoteRequest {
     @NonNull
     private static NoteOptions readNoteOptions(JsonObject optionsObject) {
         boolean allowDuplicate = false;
-        String duplicateScope = null;
+        // Default to a non-"deck" scope so the collection-wide path is taken
+        // when the client omits duplicateScope.
+        String duplicateScope = "collection";
         String duplicateScopeDeckName = null;
         boolean duplicateScopeCheckChildren = false;
         boolean duplicateScopeCheckAllModels = false;
 
-
-        allowDuplicate = optionsObject.get("allowDuplicate").getAsBoolean();
-        duplicateScope = optionsObject.get("duplicateScope").getAsString();
+        if (optionsObject.has("allowDuplicate") && !optionsObject.get("allowDuplicate").isJsonNull()) {
+            allowDuplicate = optionsObject.get("allowDuplicate").getAsBoolean();
+        }
+        if (optionsObject.has("duplicateScope") && !optionsObject.get("duplicateScope").isJsonNull()) {
+            duplicateScope = optionsObject.get("duplicateScope").getAsString();
+        }
         if (optionsObject.has("duplicateScopeOptions")) {
             JsonObject duplicateScopeObject = optionsObject.get("duplicateScopeOptions").getAsJsonObject();
 
@@ -148,10 +161,10 @@ public class NoteRequest {
                     duplicateScopeDeckName = duplicateDeckName.getAsString();
                 }
             }
-            if (duplicateScopeObject.has("deckName")) {
+            if (duplicateScopeObject.has("checkChildren") && !duplicateScopeObject.get("checkChildren").isJsonNull()) {
                 duplicateScopeCheckChildren = duplicateScopeObject.get("checkChildren").getAsBoolean();
             }
-            if (duplicateScopeObject.has("deckName")) {
+            if (duplicateScopeObject.has("checkAllModels") && !duplicateScopeObject.get("checkAllModels").isJsonNull()) {
                 duplicateScopeCheckAllModels = duplicateScopeObject.get("checkAllModels").getAsBoolean();
             }
         }

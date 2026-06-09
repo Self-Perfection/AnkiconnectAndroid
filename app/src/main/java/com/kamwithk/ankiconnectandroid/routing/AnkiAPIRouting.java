@@ -197,6 +197,17 @@ public class AnkiAPIRouting {
      * AnkiConnect desktop also supports other formats, but this method only supports downloadable media files.
      */
     private String addNote(JsonObject raw_json) throws Exception {
+        // Reject duplicates (and empty notes) unless the request opts in via
+        // options.allowDuplicate, matching AnkiConnect. canAddNotes already
+        // honours allowDuplicate and the duplicate scope.
+        NoteRequest noteRequest = Parser.getSingleNoteRequest(raw_json);
+        ArrayList<NoteRequest> singleNote = new ArrayList<>();
+        singleNote.add(noteRequest);
+        ArrayList<Boolean> canAdd = integratedAPI.canAddNotes(singleNote);
+        if (canAdd.isEmpty() || !canAdd.get(0)) {
+            throw new Exception("cannot create note because it is a duplicate");
+        }
+
         Map<String, String> noteValues = Parser.getNoteValues(raw_json);
 
         ArrayList<MediaRequest> mediaRequests =

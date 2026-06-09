@@ -70,6 +70,7 @@ Two intentional differences from AnkiDroid:
 | `test_smoke.py`    | Smoke tests: `version`, `deckNames`, `modelNames`                     |
 | `test_errors.py`   | Unsupported action returns a clean error (no Java stack trace)        |
 | `test_koplugin.py` | koplugin scenario: requestPermission → addNote → notesInfo → deleteNotes |
+| `test_duplicates.py` | addNote rejects duplicates unless `options.allowDuplicate` is set    |
 
 `client.py` and `conftest.py` are imported (not run directly), so they carry
 no inline dependency block; they run inside the environment of whichever
