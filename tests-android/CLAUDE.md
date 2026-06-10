@@ -1,0 +1,53 @@
+# Testing approach
+
+Behavioral, black-box tests for AnkiconnectAndroid. They talk to a **real
+device** running the app + AnkiDroid over HTTP — no emulator, no mocking. The
+suite verifies the *protocol behaviour*, not internal classes.
+
+User-facing how-to (env vars, uv, layout) lives in `README.md`. This file is
+the *why* and the conventions for writing new tests.
+
+## Principles
+
+1. **Gold standard = desktop AnkiConnect.** Every test must also pass against a
+   real desktop AnkiConnect. It is the oracle for correct behaviour; if a test
+   fails there, the test is wrong, not the server. Run it both ways before
+   trusting a test (see README "Validating against desktop AnkiConnect").
+
+2. **Reproduce anki-connect's cases faithfully, don't paraphrase.**
+   anki-connect's own `tests/` (e.g. `test_notes.py`) encode the spec,
+   including regression tests named `test_bugNNN` — a map of already-paid-for
+   bugs. Keep each case's *data and assertions* (field values, options, scopes)
+   verbatim; rewrite only the setup/teardown, since their fixtures rely on
+   actions we don't implement (`createDeck`, `createModel`, `findCards`, ...) —
+   use a pre-existing deck + the `Basic` model and tag-based cleanup instead.
+   Paraphrasing loses cases: it is how we first missed `duplicateScope: "deck"`,
+   which their `test_bug164` covers.
+
+3. **Cover port-specific blind spots with property/metamorphic tests.** Some
+   bugs are impossible in desktop AnkiConnect and so absent from its tests, but
+   possible here because of the port (Gson JSON parsing, the AnkiDroid
+   ContentProvider, case sensitivity). Encode the invariant instead of guessing
+   the bug:
+   - permuting the order of keys in `fields` must not change the result
+     (caught the duplicate-key-on-wrong-field bug);
+   - deck/model name case must not change the result;
+   - sending optional blocks (`options`) or omitting them must agree.
+
+4. **Build cases from what real clients actually send.** Both duplicate bugs
+   were triggered by anki.koplugin's real requests (its default
+   `duplicateScope: "deck"`, its unordered `fields`). Mirror real client
+   payloads (`test_koplugin.py`); capturing an actual request beats an
+   idealised one.
+
+## Conventions
+
+- Each test is **independent and self-cleaning**: it creates its own state and
+  removes it. Notes are tagged `acandroid_test`; the `cleanup_notes` fixture
+  deletes them afterwards. Never rely on test execution order.
+- If the server is unreachable, the `anki` fixture **skips** (not fails).
+- A behaviour that is genuinely AnkiDroid-specific (e.g. an action desktop
+  supports but AnkiDroid can't) should **skip** on the gold standard, with a
+  reason, rather than fail — see `test_errors.py`.
+- Files are grouped by topic (`test_<area>.py`); functions are `test_*`.
+  pytest discovers them all — see README for the single run-all command.

@@ -1,16 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# /// script
-# requires-python = ">=3.9"
-# dependencies = ["pytest>=8", "requests>=2.31"]
-# ///
 """Tests for clean error responses (no Java stack trace leaking out).
 
-Run directly with uv (no pip needed): ``uv run test_errors.py``.
+Run with uv (no pip needed): ``uv run pytest test_errors.py``.
 """
 
 import pytest
 
 import client
+
+pytestmark = pytest.mark.edge
 
 
 def test_unsupported_action_clean_error(anki):
@@ -34,9 +32,3 @@ def test_unsupported_action_clean_error(anki):
     assert "\tat " not in message
     assert "\n\tat" not in message
     assert "Exception:" not in message
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.exit(pytest.main([__file__, "-v"]))

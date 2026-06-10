@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# /// script
-# requires-python = ">=3.9"
-# dependencies = ["pytest>=8", "requests>=2.31"]
-# ///
 """End-to-end scenario mirroring how the KOReader anki.koplugin client talks
 to the server: requestPermission -> addNote -> notesInfo -> deleteNotes.
 
 These run against a real device; if the server is unreachable they skip
 cleanly via the ``anki`` fixture in conftest.py.
 
-Run directly with uv (no pip needed): ``uv run test_koplugin.py``.
+Run with uv (no pip needed): ``uv run pytest test_koplugin.py``.
 """
 
+import pytest
+
 from conftest import TEST_DECK, TEST_TAG
+
+pytestmark = pytest.mark.core
 
 
 def test_request_permission(anki):
@@ -54,11 +54,3 @@ def test_koplugin_add_info_delete(anki, cleanup_notes):
     assert anki("deleteNotes", notes=[note_id]) is None
     remaining = anki("findNotes", query=f"nid:{note_id}")
     assert remaining == []
-
-
-if __name__ == "__main__":
-    import sys
-
-    import pytest
-
-    sys.exit(pytest.main([__file__, "-v"]))

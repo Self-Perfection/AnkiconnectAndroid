@@ -1,21 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# /// script
-# requires-python = ">=3.9"
-# dependencies = ["pytest>=8", "requests>=2.31"]
-# ///
 """addNote duplicate handling, matching AnkiConnect.
 
 A note whose first field duplicates an existing note (same model) must be
 rejected unless options.allowDuplicate is true. This guards a bug where
 AnkiconnectAndroid added duplicates unconditionally.
 
-Run directly with uv (no pip needed): ``uv run test_duplicates.py``.
+Run with uv (no pip needed): ``uv run pytest test_duplicates.py``.
 """
 
 import pytest
 
 import client
 from conftest import TEST_DECK, TEST_TAG
+
+pytestmark = pytest.mark.edge
 
 
 def _note(front, back, *, allow_duplicate=None, duplicate_scope=None):
@@ -105,9 +103,3 @@ def test_addnote_allows_duplicate_when_opted_in(anki, cleanup_notes):
     second = anki("addNote", note=_note(front, "back two", allow_duplicate=True))
     assert second is not None
     assert int(second) != int(first)
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.exit(pytest.main([__file__, "-v"]))
