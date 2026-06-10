@@ -24,5 +24,16 @@ BASE64_DATA = base64.b64encode(b"test 1").decode("ascii")
 def test_storeMediaFile_returns_filename(anki):
     # Source: tests/test_media.py::test_storeMediaFile_one_file
     # (there it also retrieves to verify bytes; we can't, see module docstring).
+    #
+    # Desktop returns the requested name verbatim ("_acandroid_test.txt").
+    # AnkiDroid's media provider uniquifies it by appending a numeric suffix to
+    # the stem ("_acandroid_test_<digits>.txt") and there is no API to force an
+    # exact name (see MediaAPI.storeMediaFile's TODO). So the everywhere-true
+    # contract is weaker than equality: the stem is preserved as a prefix and
+    # the extension is kept. Clients MUST reference the returned name, not the
+    # one they sent — important for media-storing clients (anki_notes_creator).
     result = anki("storeMediaFile", filename=FILENAME, data=BASE64_DATA)
-    assert result == FILENAME
+    assert isinstance(result, str)
+    stem, _, ext = FILENAME.rpartition(".")
+    assert result.startswith(stem)
+    assert result.endswith("." + ext)
