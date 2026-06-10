@@ -102,8 +102,18 @@ public class IntegratedAPI {
             checksums.add(Utility.getFieldChecksum(key));
         }
 
-        // If duplicates are allowed, just need to see if they are valid notes (checksum != 0)
-        if (noteOptions.isAllowDuplicate()) {
+        // allowDuplicate is per-note (a batch can mix notes that opt in and ones
+        // that don't — AnkiConnect evaluates each note with its own options).
+        // Fast path only when *every* note opts in: then we just need them to be
+        // valid (non-empty, checksum != 0) and can skip the duplicate query.
+        boolean allAllowDuplicate = true;
+        for (NoteRequest note : notesToTest) {
+            if (!note.getOptions().isAllowDuplicate()) {
+                allAllowDuplicate = false;
+                break;
+            }
+        }
+        if (allAllowDuplicate) {
             for (long checksum: checksums) {
                 canAddNote.add(checksum != 0);
             }
@@ -141,20 +151,24 @@ public class IntegratedAPI {
                 null
         );
 
+        LinkedHashSet<Long> queryChecksums;
         if (cursor == null || cursor.getCount() == 0) {
-            for (int i = 0; i < notesToTest.size(); i++) {
-                canAddNote.add(true);
-            }
-        }
-        else {
-            LinkedHashSet<Long> queryChecksums = findChecksumsInQuery(
+            queryChecksums = new LinkedHashSet<>();
+        } else {
+            queryChecksums = findChecksumsInQuery(
                     cursor,
                     noteOptions.getDuplicateScope().equals("deck"), deckIds);
+        }
 
-            for (int i = 0; i < checksums.size(); i++) {
-                boolean isChecksumFound = !queryChecksums.contains(checksums.get(i));
-                canAddNote.add(isChecksumFound);
-            }
+        // Decide per note: it can be added if it is valid (non-empty) and either
+        // it opts into duplicates or its checksum is not a known duplicate in
+        // scope. allowDuplicate is read from each note's own options.
+        for (int i = 0; i < checksums.size(); i++) {
+            long checksum = checksums.get(i);
+            boolean allowDuplicate = notesToTest.get(i).getOptions().isAllowDuplicate();
+            boolean canAdd = checksum != 0
+                    && (allowDuplicate || !queryChecksums.contains(checksum));
+            canAddNote.add(canAdd);
         }
 
         return canAddNote;
