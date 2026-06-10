@@ -76,12 +76,10 @@ AnkiConnect — a known-good server should pass:
 ANKI_CONNECT_URL=http://localhost:8765 ANKI_CONNECT_KEY=<your-key> uv run pytest test_koplugin.py
 ```
 
-Two intentional differences from AnkiDroid:
+One intentional tolerance for the desktop/AnkiDroid difference:
 
 - `requestPermission` only guarantees `permission`; `requireApiKey`/`version`
   are checked only when present, because desktop does not always return them.
-- `test_errors.py` **skips** when `getProfiles` works (desktop supports it):
-  the clean-error-for-unsupported-action behaviour is AnkiDroid-specific.
 
 ## Layout
 

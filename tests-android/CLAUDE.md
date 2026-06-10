@@ -46,8 +46,11 @@ the *why* and the conventions for writing new tests.
   removes it. Notes are tagged `acandroid_test`; the `cleanup_notes` fixture
   deletes them afterwards. Never rely on test execution order.
 - If the server is unreachable, the `anki` fixture **skips** (not fails).
-- A behaviour that is genuinely AnkiDroid-specific (e.g. an action desktop
-  supports but AnkiDroid can't) should **skip** on the gold standard, with a
-  reason, rather than fail — see `test_errors.py`.
+- **Prefer tests that pass on every server** over ones that skip on the gold
+  standard. Assert the everywhere-true common denominator: e.g. for an
+  unsupported action, use a clearly bogus name (rejected by desktop *and*
+  AnkiDroid) and assert the shared `"unsupported action"` substring, rather
+  than an action that only one of them rejects. Skip on the gold standard only
+  when a behaviour is genuinely impossible to assert there.
 - Files are grouped by topic (`test_<area>.py`); functions are `test_*`.
   pytest discovers them all — see README for the single run-all command.

@@ -12,23 +12,20 @@ pytestmark = pytest.mark.edge
 
 
 def test_unsupported_action_clean_error(anki):
-    # getProfiles is not supported on AnkiDroid; it should produce a clean,
-    # human-readable error string rather than a Java stack trace dump.
+    # A nonexistent action must yield a clean {"result": null, "error": ...}
+    # envelope on every server, not a Java stack-trace dump. Using a clearly
+    # bogus action (unsupported everywhere) keeps this test meaningful against
+    # both AnkiconnectAndroid and desktop AnkiConnect — no skip needed.
     #
-    # On a server where getProfiles IS supported (e.g. desktop AnkiConnect, used
-    # as the gold standard to validate this suite) there is no error to inspect,
-    # so skip: graceful degradation is an AnkiDroid-specific property.
-    try:
-        anki("getProfiles")
-    except client.AnkiConnectError as exc:
-        message = str(exc)
-    else:
-        pytest.skip("getProfiles is supported on this server; the clean-error "
-                    "behaviour under test is AnkiDroid-specific")
+    # Desktop replies "unsupported action"; AnkiconnectAndroid additionally
+    # echoes the action name ("unsupported action: <name>"). The common,
+    # everywhere-true assertion is the "unsupported action" substring.
+    with pytest.raises(client.AnkiConnectError) as exc_info:
+        anki("definitelyNotARealActionXyz")
 
-    assert "unsupported action" in message
-    assert "getProfiles" in message
-    # No stack-trace artefacts.
+    message = str(exc_info.value)
+    assert "unsupported action" in message.lower()
+    # No Java stack-trace artefacts leaking through.
     assert "\tat " not in message
     assert "\n\tat" not in message
     assert "Exception:" not in message
