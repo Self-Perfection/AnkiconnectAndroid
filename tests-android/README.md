@@ -85,8 +85,6 @@ Two intentional differences from AnkiDroid:
 
 ## Layout
 
-| File               | Purpose                                                               |
-| ------------------ | --------------------------------------------------------------------- |
 | File                 | Marker  | Purpose                                                             |
 | -------------------- | ------- | ------------------------------------------------------------------- |
 | `pyproject.toml`     | —       | Declares deps + registers markers; makes `uv run pytest` work       |
@@ -94,8 +92,16 @@ Two intentional differences from AnkiDroid:
 | `conftest.py`        | —       | Fixtures: base URL, an `anki` invoke fixture, test-note cleanup     |
 | `test_smoke.py`      | `smoke` | Smoke tests: `version`, `deckNames`, `modelNames`                   |
 | `test_koplugin.py`   | `core`  | koplugin scenario: requestPermission → addNote → notesInfo → deleteNotes |
+| `test_notes.py`      | `core`  | canAddNotes, canAddNotesWithErrorDetail, notesInfo, findNotes, updateNoteFields |
+| `test_models.py`     | `core`  | modelNamesAndIds, modelFieldNames read assertions (Basic model)     |
+| `test_decks.py`      | `core`  | deckNamesAndIds read assertion (Default present, int id)            |
+| `test_media.py`      | `core`  | storeMediaFile returns the filename (store-only; no retrieve/delete) |
+| `test_server.py`     | `core`  | `multi` batches actions; asserts per-request envelope shape + order |
 | `test_duplicates.py` | `edge`  | addNote rejects duplicates unless `options.allowDuplicate` is set   |
 | `test_errors.py`     | `edge`  | Unsupported action returns a clean error (no Java stack trace)      |
+
+`guiBrowse` is implemented but intentionally untested: it is a GUI action with
+no assertable result in a headless HTTP suite.
 
 Notes created by tests are tagged `acandroid_test`; the `cleanup_notes`
 fixture removes them via `deleteNotes` after each test.
