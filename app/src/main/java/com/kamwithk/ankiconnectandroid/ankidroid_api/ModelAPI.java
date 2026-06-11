@@ -85,7 +85,7 @@ public class ModelAPI {
             }
         }
 
-        // Can't find model
-        throw new Exception("Couldn't get model ID");
+        // Match desktop AnkiConnect's message so clients see identical errors.
+        throw new Exception("model was not found: " + modelName);
     }
 }

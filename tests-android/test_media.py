@@ -64,8 +64,19 @@ NONEXISTENT = "_acandroid_delete_probe.txt"
 
 
 def test_deleteMediaFile_desktop_contract(anki):
-    # Desktop returns null and no error even for a file that isn't there.
-    result = anki("deleteMediaFile", filename=NONEXISTENT)
+    # Desktop returns null and no error even for a file that isn't there. The
+    # AnkiDroid media provider is insert-only, so the port rejects it with a
+    # clean "not supported" error instead; on that server this test SKIPS
+    # (the rejection is asserted by test_deleteMediaFile_not_supported_on_android).
+    import client
+    try:
+        result = anki("deleteMediaFile", filename=NONEXISTENT)
+    except client.AnkiConnectError as exc:
+        msg = str(exc).lower()
+        if "not supported" in msg or "unsupported" in msg:
+            pytest.skip("server rejects deleteMediaFile (AnkiDroid); "
+                        "desktop-null contract is desktop-only")
+        raise
     assert result is None
 
 

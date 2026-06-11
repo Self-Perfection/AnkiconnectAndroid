@@ -315,9 +315,13 @@ public class AnkiAPIRouting {
             }
         }
         Map<Long, JsonObject> noteJsonById = new HashMap<>();
-        for (JsonElement el : Parser.gson.toJsonTree(integratedAPI.noteAPI.notesInfo(noteIds)).getAsJsonArray()) {
-            JsonObject noteObj = el.getAsJsonObject();
-            noteJsonById.put(noteObj.get("noteId").getAsLong(), noteObj);
+        // Skip when there are no known cards: notesInfo([]) builds an empty "nid:"
+        // query and returns null, which would blow up toJsonTree(...).getAsJsonArray().
+        if (!noteIds.isEmpty()) {
+            for (JsonElement el : Parser.gson.toJsonTree(integratedAPI.noteAPI.notesInfo(noteIds)).getAsJsonArray()) {
+                JsonObject noteObj = el.getAsJsonObject();
+                noteJsonById.put(noteObj.get("noteId").getAsLong(), noteObj);
+            }
         }
 
         JsonArray result = new JsonArray();
