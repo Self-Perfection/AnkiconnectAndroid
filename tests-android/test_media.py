@@ -50,13 +50,16 @@ def test_storeMediaFile_returns_filename(anki):
 # can pass on both, so the two expectations live in separate tests:
 #
 #   * test_deleteMediaFile_desktop_contract -- the oracle's behaviour (returns
-#     null, no error). Validated against desktop AnkiConnect.
+#     null, no error); SKIPS on AnkiDroid, which rejects the delete.
 #   * test_deleteMediaFile_not_supported_on_android -- the port's expectation
-#     (a clean "not supported" error). This FAILS on desktop by construction,
-#     so it is marked ``manual`` (opt-in) and is the one to confirm on-device.
+#     (a clean "not supported" error); SKIPS on desktop, which accepts it.
 #
-# We can't retrieve media back over the Android API, so neither test asserts
-# the on-disk effect; they assert only the envelope each server returns.
+# The two are symmetric: on each server exactly one runs and the other skips, so
+# deleteMediaFile is covered by default on BOTH (no opt-in). The error contract
+# is returned synchronously over HTTP, so it is fully automated -- NOT ``manual``
+# (which is reserved for effects a human must eyeball). We can't retrieve media
+# back over the Android API, so neither test asserts the on-disk effect; they
+# assert only the envelope each server returns.
 
 # A name unlikely to collide with real media; deletion of a non-existent file
 # is a no-op on desktop (trash_files tolerates it), so this needs no setup.
@@ -80,17 +83,12 @@ def test_deleteMediaFile_desktop_contract(anki):
     assert result is None
 
 
-@pytest.mark.manual
 def test_deleteMediaFile_not_supported_on_android(anki):
     # Android-only expectation: insert-only media provider -> clean
-    # "not supported" error (no Java stack trace). This deliberately does NOT
-    # hold on the desktop oracle (which succeeds), so it is opt-in via
-    # --run-manual and is for on-device verification.
-    #
-    # To stay green on the gold standard (CLAUDE.md: assert Android-only
-    # behaviour only where it can hold), it SKIPS when the server accepts the
-    # delete -- i.e. the desktop oracle. On AnkiDroid the delete is rejected and
-    # the assertion runs.
+    # "not supported" error (no Java stack trace). Fully automated -- the error
+    # is read back over HTTP. To stay green on the gold standard it SKIPS when
+    # the server accepts the delete (the desktop oracle); on AnkiDroid the delete
+    # is rejected and the assertion runs.
     import client
     try:
         anki("deleteMediaFile", filename=NONEXISTENT)
