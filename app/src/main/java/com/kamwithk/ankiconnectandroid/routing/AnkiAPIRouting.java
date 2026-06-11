@@ -287,8 +287,27 @@ public class AnkiAPIRouting {
             deckIdToName.put(entry.getValue(), entry.getKey());
         }
 
+        List<CardAPI.CardInfo> cards = integratedAPI.cardAPI.cardsInfo(cardIds);
+
+        // modelName and fields are note-derived (not on the card row), but desktop
+        // AnkiConnect includes them in cardsInfo. Fetch them per note (deduped) via
+        // notesInfo and reuse its exact JSON shape ({modelName, fields:{name:{value,
+        // order}}}); serialising the whole list avoids naming the package-private
+        // NoteInfo type from this package.
+        ArrayList<Long> noteIds = new ArrayList<>();
+        for (CardAPI.CardInfo info : cards) {
+            if (info != null && !noteIds.contains(info.note)) {
+                noteIds.add(info.note);
+            }
+        }
+        Map<Long, JsonObject> noteJsonById = new HashMap<>();
+        for (JsonElement el : Parser.gson.toJsonTree(integratedAPI.noteAPI.notesInfo(noteIds)).getAsJsonArray()) {
+            JsonObject noteObj = el.getAsJsonObject();
+            noteJsonById.put(noteObj.get("noteId").getAsLong(), noteObj);
+        }
+
         JsonArray result = new JsonArray();
-        for (CardAPI.CardInfo info : integratedAPI.cardAPI.cardsInfo(cardIds)) {
+        for (CardAPI.CardInfo info : cards) {
             if (info == null) {
                 // Unknown card id: emit an empty object, matching anki-connect's NotFound handling.
                 result.add(new JsonObject());
@@ -303,6 +322,12 @@ public class AnkiAPIRouting {
             card.addProperty("answer", info.answer);
             card.addProperty("note", info.note);
             card.addProperty("deckName", deckIdToName.get(info.deckId));
+            // modelName + fields come from the card's note (desktop includes both).
+            JsonObject noteObj = noteJsonById.get(info.note);
+            if (noteObj != null) {
+                card.addProperty("modelName", noteObj.get("modelName").getAsString());
+                card.add("fields", noteObj.get("fields"));
+            }
             // Scheduler fields (due, interval, factor, queue, type, reps, lapses, mod, ...) are not
             // exposed by FlashCardsContract.Card on the supported AnkiDroid version, so they are
             // intentionally omitted rather than fabricated.
