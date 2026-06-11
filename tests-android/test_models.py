@@ -27,3 +27,27 @@ def test_modelFieldNames(anki):
     # (there: test_model -> ["field1", "field2"]; Basic -> ["Front", "Back"]).
     result = anki("modelFieldNames", modelName="Basic")
     assert result == ["Front", "Back"]
+
+
+# --- modelStyling (anki-connect TestStyling::test_modelStyling) ------------
+# Read-only on AnkiDroid (Model.CSS is queryable; updateModelStyling is not
+# implemented), so only the read is portable.
+
+
+def test_modelStyling(anki):
+    # Source: tests/test_models.py::TestStyling::test_modelStyling
+    # (there test_model's css is "* {}"; Basic ships a real stylesheet). The
+    # everywhere-true contract is the shape: {"css": <str>} with the model's
+    # actual CSS, which for Basic targets the ``.card`` selector.
+    result = anki("modelStyling", modelName="Basic")
+    assert isinstance(result, dict)
+    assert isinstance(result["css"], str)
+    assert ".card" in result["css"]
+
+
+def test_modelStyling_missing_model_errors(anki):
+    # Desktop raises "model was not found: X"; over HTTP that is a non-null
+    # error envelope. Assert the clean, shared message substring.
+    import client
+    with pytest.raises(client.AnkiConnectError, match="was not found"):
+        anki("modelStyling", modelName="NoSuchModel_acandroid_xyz")

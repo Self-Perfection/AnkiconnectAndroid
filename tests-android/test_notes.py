@@ -176,3 +176,71 @@ def test_updateNoteFields_will_not_update_invalid_notes(anki):
     bad_note = {"id": 123, "fields": {"Front": "x", "Back": "y"}}
     with pytest.raises(client.AnkiConnectError):
         anki("updateNoteFields", note=bad_note)
+
+
+# --- updateNote (anki-connect TestUpdateNote) ------------------------------
+# updateNote = updateNoteFields + tag rewrite; requires fields or tags.
+
+
+def test_updateNote(anki, cleanup_notes):
+    # Source: tests/test_notes.py::TestUpdateNote::test_updateNote
+    # (there: field1/field2 -> frontbar/backbar, tags -> ["foobar"]). Adapted
+    # to the Basic model's Front/Back. Keeps TEST_TAG so cleanup still finds it.
+    note_id = int(anki("addNote", note=make_note(front="acandroid updatenote front",
+                                                 back="before")))
+
+    new_fields = {"Front": "frontbar", "Back": "backbar"}
+    new_tags = ["foobar", TEST_TAG]
+    anki("updateNote", note={"id": note_id, "fields": new_fields, "tags": new_tags})
+
+    info = anki("notesInfo", notes=[note_id])[0]
+    assert info["fields"]["Front"]["value"] == "frontbar"
+    assert info["fields"]["Back"]["value"] == "backbar"
+    assert {*info["tags"]} == {"foobar", TEST_TAG}
+
+
+def test_updateNote_only_tags(anki, cleanup_notes):
+    # updateNote with only a "tags" property rewrites tags, leaving fields.
+    note_id = int(anki("addNote", note=make_note(front="acandroid updatenote tagsonly",
+                                                 back="keepme")))
+
+    anki("updateNote", note={"id": note_id, "tags": [TEST_TAG, "extratag"]})
+
+    info = anki("notesInfo", notes=[note_id])[0]
+    assert info["fields"]["Back"]["value"] == "keepme"  # fields untouched
+    assert {*info["tags"]} == {TEST_TAG, "extratag"}
+
+
+def test_updateNote_requires_either_fields_or_tags(anki, cleanup_notes):
+    # Source: tests/test_notes.py::TestUpdateNote::
+    #         test_updateNote_requires_either_fields_or_tags
+    note_id = int(anki("addNote", note=make_note(front="acandroid updatenote require")))
+    with pytest.raises(client.AnkiConnectError, match="ust provide"):
+        anki("updateNote", note={"id": note_id})
+
+
+# --- addTags (anki-connect TestTags::test_addTags) -------------------------
+
+
+def test_addTags(anki, cleanup_notes):
+    # Source: tests/test_notes.py::TestTags::test_addTags
+    # (there note1 starts with "tag1"; here it starts with TEST_TAG). Adds a
+    # second tag and asserts both are present.
+    note_id = int(anki("addNote", note=make_note(front="acandroid addtags")))
+
+    anki("addTags", notes=[note_id], tags="tag2")
+
+    tags = anki("notesInfo", notes=[note_id])[0]["tags"]
+    assert {*tags} == {TEST_TAG, "tag2"}
+
+
+def test_addTags_multiple_notes(anki, cleanup_notes):
+    # addTags applies to every note id passed; assert the new tag lands on all.
+    id1 = int(anki("addNote", note=make_note(front="acandroid addtags multi 1")))
+    id2 = int(anki("addNote", note=make_note(front="acandroid addtags multi 2")))
+
+    anki("addTags", notes=[id1, id2], tags="sharedtag")
+
+    for note_id in (id1, id2):
+        tags = anki("notesInfo", notes=[note_id])[0]["tags"]
+        assert "sharedtag" in tags

@@ -111,12 +111,13 @@ mode (`gui`/`manual`, opt-in) are independent.
 | `conftest.py`        | —            | Fixtures + the `--run-gui`/`--run-manual` opt-in skip hook          |
 | `test_smoke.py`      | `smoke`      | Smoke tests: `version`, `deckNames`, `modelNames`                   |
 | `test_koplugin.py`   | `core`       | koplugin scenario: requestPermission → addNote → notesInfo → deleteNotes |
-| `test_notes.py`      | `core`       | canAddNotes, canAddNotesWithErrorDetail, notesInfo, findNotes, updateNoteFields |
-| `test_models.py`     | `core`       | modelNamesAndIds, modelFieldNames read assertions (Basic model)     |
+| `test_notes.py`      | `core`       | canAddNotes, notesInfo, findNotes, updateNoteFields, updateNote, addTags |
+| `test_cards.py`      | `core`       | findCards, cardsInfo (common subset only — no scheduler fields)     |
+| `test_models.py`     | `core`       | modelNamesAndIds, modelFieldNames, modelStyling (Basic model)       |
 | `test_decks.py`      | `core`       | deckNamesAndIds read assertion (Default present, int id)            |
-| `test_media.py`      | `core`       | storeMediaFile returns the filename (store-only; no retrieve/delete) |
+| `test_media.py`      | `core`,`manual` | storeMediaFile (store-only); deleteMediaFile desktop contract + Android not-supported (`manual`) |
 | `test_server.py`     | `core`       | `multi` batches actions; asserts per-request envelope shape + order |
-| `test_gui.py`        | `core`,`gui` | GUI actions (guiBrowse): contract-only, opt in with `--run-gui`     |
+| `test_gui.py`        | `core`,`gui` | guiBrowse/guiEditNote/guiSelectCard (`gui`, contract-only); guiSelectedNotes/guiAddNoteSetData (automated) |
 | `test_duplicates.py` | `edge`       | addNote rejects duplicates unless `options.allowDuplicate` is set   |
 | `test_errors.py`     | `edge`       | Unsupported action returns a clean error (no Java stack trace)      |
 

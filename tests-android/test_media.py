@@ -37,3 +37,56 @@ def test_storeMediaFile_returns_filename(anki):
     stem, _, ext = FILENAME.rpartition(".")
     assert result.startswith(stem)
     assert result.endswith("." + ext)
+
+
+# --- deleteMediaFile -------------------------------------------------------
+# Source: tests/test_media.py::test_deleteMediaFile (the desktop case stores,
+# deletes, then verifies the file is gone via retrieveMediaFile/getMediaFiles).
+#
+# This is a hard desktop/AnkiDroid divergence (plan 2.3): AnkiDroid's media
+# provider (FlashCardsContract.AnkiMedia) is insert-only, so deleteMediaFile
+# CANNOT work there and is implemented as a "not supported" stub. Desktop, by
+# contrast, deletes the file and returns null without error. No single test
+# can pass on both, so the two expectations live in separate tests:
+#
+#   * test_deleteMediaFile_desktop_contract -- the oracle's behaviour (returns
+#     null, no error). Validated against desktop AnkiConnect.
+#   * test_deleteMediaFile_not_supported_on_android -- the port's expectation
+#     (a clean "not supported" error). This FAILS on desktop by construction,
+#     so it is marked ``manual`` (opt-in) and is the one to confirm on-device.
+#
+# We can't retrieve media back over the Android API, so neither test asserts
+# the on-disk effect; they assert only the envelope each server returns.
+
+# A name unlikely to collide with real media; deletion of a non-existent file
+# is a no-op on desktop (trash_files tolerates it), so this needs no setup.
+NONEXISTENT = "_acandroid_delete_probe.txt"
+
+
+def test_deleteMediaFile_desktop_contract(anki):
+    # Desktop returns null and no error even for a file that isn't there.
+    result = anki("deleteMediaFile", filename=NONEXISTENT)
+    assert result is None
+
+
+@pytest.mark.manual
+def test_deleteMediaFile_not_supported_on_android(anki):
+    # Android-only expectation: insert-only media provider -> clean
+    # "not supported" error (no Java stack trace). This deliberately does NOT
+    # hold on the desktop oracle (which succeeds), so it is opt-in via
+    # --run-manual and is for on-device verification.
+    #
+    # To stay green on the gold standard (CLAUDE.md: assert Android-only
+    # behaviour only where it can hold), it SKIPS when the server accepts the
+    # delete -- i.e. the desktop oracle. On AnkiDroid the delete is rejected and
+    # the assertion runs.
+    import client
+    try:
+        anki("deleteMediaFile", filename=NONEXISTENT)
+    except client.AnkiConnectError as exc:
+        msg = str(exc).lower()
+        assert "not supported" in msg or "unsupported" in msg
+        assert "\n\tat " not in str(exc)  # clean message, no Java stack trace
+    else:
+        pytest.skip("server accepts deleteMediaFile (desktop oracle); "
+                    "the not-supported contract is AnkiDroid-only")
