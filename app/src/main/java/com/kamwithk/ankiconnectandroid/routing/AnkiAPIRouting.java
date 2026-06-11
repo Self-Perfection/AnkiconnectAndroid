@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.BinaryFile;
+import com.kamwithk.ankiconnectandroid.ankidroid_api.CardAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.DeckAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.IntegratedAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.MediaAPI;
@@ -64,6 +65,26 @@ public class AnkiAPIRouting {
                 return addNote(raw_json);
             case "updateNoteFields":
                 return updateNoteFields(raw_json);
+            case "updateNote":
+                return updateNote(raw_json);
+            case "addTags":
+                return addTags(raw_json);
+            case "findCards":
+                return findCards(raw_json);
+            case "cardsInfo":
+                return cardsInfo(raw_json);
+            case "modelStyling":
+                return modelStyling(raw_json);
+            case "guiEditNote":
+                return guiEditNote(raw_json);
+            case "guiSelectedNotes":
+                return guiSelectedNotes(raw_json);
+            case "deleteMediaFile":
+                throw new Exception("deleteMediaFile is not supported on AnkiDroid: the AnkiDroid media provider only supports adding files, not deleting them.");
+            case "guiSelectCard":
+                throw new Exception("guiSelectCard is not supported on AnkiDroid.");
+            case "guiAddNoteSetData":
+                throw new Exception("guiAddNoteSetData is not supported on AnkiDroid.");
             case "storeMediaFile":
                 return storeMediaFile(raw_json);
             case "notesInfo":
@@ -233,6 +254,78 @@ public class AnkiAPIRouting {
                 Parser.getNoteMediaRequests(raw_json)
         );
         return "null";
+    }
+
+    private String updateNote(JsonObject raw_json) throws Exception {
+        integratedAPI.updateNote(
+                Parser.getNoteId(raw_json),
+                Parser.getUpdateNoteFieldsOptional(raw_json),
+                Parser.getNoteMediaRequests(raw_json),
+                Parser.getUpdateNoteTagsOptional(raw_json)
+        );
+        return "null";
+    }
+
+    private String addTags(JsonObject raw_json) {
+        integratedAPI.addTags(
+                Parser.getNoteIds(raw_json),
+                Parser.getTags(raw_json)
+        );
+        return "null";
+    }
+
+    private String findCards(JsonObject raw_json) {
+        return Parser.gson.toJson(integratedAPI.cardAPI.findCards(Parser.getNoteQuery(raw_json)));
+    }
+
+    private String cardsInfo(JsonObject raw_json) throws Exception {
+        ArrayList<Long> cardIds = Parser.getCardIds(raw_json);
+
+        // Build a deck id -> name lookup so each card can report its deckName.
+        Map<Long, String> deckIdToName = new HashMap<>();
+        for (Map.Entry<String, Long> entry : deckAPI.deckNamesAndIds().entrySet()) {
+            deckIdToName.put(entry.getValue(), entry.getKey());
+        }
+
+        JsonArray result = new JsonArray();
+        for (CardAPI.CardInfo info : integratedAPI.cardAPI.cardsInfo(cardIds)) {
+            if (info == null) {
+                // Unknown card id: emit an empty object, matching anki-connect's NotFound handling.
+                result.add(new JsonObject());
+                continue;
+            }
+            JsonObject card = new JsonObject();
+            card.addProperty("cardId", info.cardId);
+            card.addProperty("fieldOrder", info.fieldOrder);
+            card.addProperty("ord", info.ord);
+            card.addProperty("cardName", info.cardName);
+            card.addProperty("question", info.question);
+            card.addProperty("answer", info.answer);
+            card.addProperty("note", info.note);
+            card.addProperty("deckName", deckIdToName.get(info.deckId));
+            // Scheduler fields (due, interval, factor, queue, type, reps, lapses, mod, ...) are not
+            // exposed by FlashCardsContract.Card on the supported AnkiDroid version, so they are
+            // intentionally omitted rather than fabricated.
+            result.add(card);
+        }
+        return Parser.gson.toJson(result);
+    }
+
+    private String modelStyling(JsonObject raw_json) throws Exception {
+        String modelName = Parser.getModelNameFromParam(raw_json);
+        JsonObject styling = new JsonObject();
+        styling.addProperty("css", modelAPI.modelStyling(modelName));
+        return Parser.gson.toJson(styling);
+    }
+
+    private String guiEditNote(JsonObject raw_json) {
+        integratedAPI.guiEditNote(Parser.getGuiEditNoteId(raw_json));
+        return "null";
+    }
+
+    private String guiSelectedNotes(JsonObject raw_json) {
+        // No Android analogue for the desktop browser selection; degrade to an empty list.
+        return Parser.gson.toJson(new ArrayList<Long>());
     }
 
     private String storeMediaFile(JsonObject raw_json) throws Exception {

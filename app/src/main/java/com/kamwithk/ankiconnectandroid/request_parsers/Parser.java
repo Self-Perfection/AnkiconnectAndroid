@@ -146,6 +146,55 @@ public class Parser {
         return noteIds;
     }
 
+    /**
+     * updateNote takes note: {id, fields?, tags?}. Fields/tags are optional; returns null for an
+     * absent property so the caller can enforce "at least one of fields/tags".
+     */
+    public static Map<String, String> getUpdateNoteFieldsOptional(JsonObject raw_data) {
+        JsonObject note = raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject();
+        if (!note.has("fields") || note.get("fields").isJsonNull()) {
+            return null;
+        }
+        Type fieldType = new TypeToken<Map<String, String>>() {}.getType();
+        return gson.fromJson(note.get("fields"), fieldType);
+    }
+
+    public static Set<String> getUpdateNoteTagsOptional(JsonObject raw_data) {
+        JsonObject note = raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject();
+        if (!note.has("tags") || note.get("tags").isJsonNull()) {
+            return null;
+        }
+        Type fieldType = new TypeToken<Set<String>>() {}.getType();
+        return gson.fromJson(note.get("tags"), fieldType);
+    }
+
+    public static long getNoteId(JsonObject raw_data) {
+        return raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("id").getAsLong();
+    }
+
+    /**
+     * addTags takes notes: [ids] (parsed by {@link #getNoteIds}) and tags: "space separated".
+     */
+    public static String getTags(JsonObject raw_data) {
+        return raw_data.get("params").getAsJsonObject().get("tags").getAsString();
+    }
+
+    /**
+     * cardsInfo / findCards-related: cards: [ids].
+     */
+    public static ArrayList<Long> getCardIds(JsonObject raw_data) {
+        ArrayList<Long> cardIds = new ArrayList<>();
+        JsonArray jsonCardIds = raw_data.get("params").getAsJsonObject().get("cards").getAsJsonArray();
+        for (JsonElement cardId : jsonCardIds) {
+            cardIds.add(cardId.getAsLong());
+        }
+        return cardIds;
+    }
+
+    public static long getGuiEditNoteId(JsonObject raw_data) {
+        return raw_data.get("params").getAsJsonObject().get("note").getAsLong();
+    }
+
     public static String getMediaFilename(JsonObject raw_data) {
         return raw_data.get("params").getAsJsonObject().get("filename").getAsString();
     }

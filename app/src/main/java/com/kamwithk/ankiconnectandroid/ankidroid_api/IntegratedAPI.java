@@ -29,6 +29,7 @@ public class IntegratedAPI {
     public final ModelAPI modelAPI;
     public final NoteAPI noteAPI;
     public final MediaAPI mediaAPI;
+    public final CardAPI cardAPI;
     private final AddContentApi api; // TODO: Combine all API classes???
 
     //From anki-connect repo
@@ -40,6 +41,7 @@ public class IntegratedAPI {
         modelAPI = new ModelAPI(context);
         noteAPI = new NoteAPI(context);
         mediaAPI = new MediaAPI(context);
+        cardAPI = new CardAPI(context, noteAPI);
 
         api = new AddContentApi(context);
     }
@@ -483,6 +485,51 @@ public class IntegratedAPI {
         noteAPI.updateNoteFields(note_id, cardFields);
     }
 
+    /**
+     * updateNote = updateNoteFields (+ media) plus an optional rewrite of the note's tags.
+     * Mirrors anki-connect's updateNote: at least one of {@code fields} / {@code tags} must be
+     * present, otherwise an exception is thrown.
+     *
+     * @param note_id note to update
+     * @param newFields fields to update, or {@code null} if none were provided
+     * @param mediaRequests media to attach to the updated fields
+     * @param tags new tag set, or {@code null} if no tags were provided
+     */
+    public void updateNote(long note_id, Map<String, String> newFields,
+                           ArrayList<MediaRequest> mediaRequests, Set<String> tags) throws Exception {
+        boolean updated = false;
+        if (newFields != null) {
+            updateNoteFields(note_id, newFields, mediaRequests);
+            updated = true;
+        }
+        if (tags != null) {
+            noteAPI.setNoteTags(note_id, tags);
+            updated = true;
+        }
+        if (!updated) {
+            throw new Exception("Must provide a \"fields\" or \"tags\" property.");
+        }
+    }
+
+    /**
+     * addTags: append the given tags to each note, preserving existing tags (read-modify-write of
+     * Note.TAGS). {@code tags} is a space-separated string, matching anki-connect's contract.
+     */
+    public void addTags(List<Long> noteIds, String tags) {
+        String[] toAdd = Utility.splitTags(tags);
+        for (long noteId : noteIds) {
+            Set<String> existing = noteAPI.getNoteTags(noteId);
+            if (toAdd != null) {
+                for (String tag : toAdd) {
+                    if (!tag.isEmpty()) {
+                        existing.add(tag);
+                    }
+                }
+            }
+            noteAPI.setNoteTags(noteId, existing);
+        }
+    }
+
     public String storeMediaFile(BinaryFile binaryFile) throws IOException {
         return mediaAPI.storeMediaFile(binaryFile.getFilename(), binaryFile.getData());
     }
@@ -525,6 +572,16 @@ public class IntegratedAPI {
         // If we want to get the results, calling the findNotes() method will likely cause
         // unwanted delay.
         return new ArrayList<>();
+    }
+
+    /**
+     * guiEditNote: open the given note in AnkiDroid. AnkiDroid has no public deep link to its note
+     * editor, so we degrade to opening the card browser focused on this single note (search
+     * "nid:&lt;id&gt;"), analogous to guiBrowse. Like guiBrowse, the result is not meaningful, so an
+     * empty list is returned.
+     */
+    public ArrayList<Long> guiEditNote(long note_id) {
+        return guiBrowse("nid:" + note_id);
     }
 }
 

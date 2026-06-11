@@ -1,6 +1,7 @@
 package com.kamwithk.ankiconnectandroid.ankidroid_api;
 
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -17,6 +18,7 @@ public class NoteAPI {
     private final AddContentApi api;
 
     private static final String[] MODEL_PROJECTION = {FlashCardsContract.Note.MID};
+    private static final String[] TAGS_PROJECTION = {FlashCardsContract.Note.TAGS};
     private static final String[] NOTE_ID_PROJECTION = {FlashCardsContract.Note._ID};
     private static final String[] NOTES_INFO_PROJECTION = {FlashCardsContract.Note._ID, FlashCardsContract.Note.MID, FlashCardsContract.Note.TAGS, FlashCardsContract.Note.FLDS};
 
@@ -93,6 +95,47 @@ public class NoteAPI {
         } finally {
             cursor.close();
         }
+    }
+
+    /**
+     * Reads the raw (space-separated) tag string of a note, as stored by AnkiDroid.
+     * Returns the empty set if the note has no tags.
+     */
+    public Set<String> getNoteTags(long note_id) {
+        Uri noteUri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, Long.toString(note_id));
+        Cursor cursor = this.resolver.query(noteUri, TAGS_PROJECTION, null, null, null);
+
+        LinkedHashSet<String> tags = new LinkedHashSet<>();
+        if (cursor == null) {
+            return tags;
+        }
+        try (cursor) {
+            if (!cursor.moveToNext()) {
+                return tags;
+            }
+            int index = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.TAGS);
+            String raw = cursor.getString(index);
+            String[] split = Utility.splitTags(raw);
+            if (split != null) {
+                for (String tag : split) {
+                    if (!tag.isEmpty()) {
+                        tags.add(tag);
+                    }
+                }
+            }
+        }
+        return tags;
+    }
+
+    /**
+     * Writes the tags of a note. The Note.TAGS column is writable through ContentResolver.update
+     * (the FlashCardsContract Javadoc shows {@code values.put(Note.TAGS, ...)} directly).
+     */
+    public void setNoteTags(long note_id, Collection<String> tags) {
+        Uri noteUri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, Long.toString(note_id));
+        ContentValues values = new ContentValues();
+        values.put(FlashCardsContract.Note.TAGS, TextUtils.join(" ", tags));
+        this.resolver.update(noteUri, values, null, null);
     }
 
     public ArrayList<Long> findNotes(String query) {
