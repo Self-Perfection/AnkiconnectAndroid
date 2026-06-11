@@ -44,6 +44,54 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip)
 
 
+# --- build identity ---------------------------------------------------------
+# The server reports the git commit it was built from via the non-standard
+# `buildInfo` action (see repo CLAUDE.md "Build identity"). We print it in the
+# report header so every run records which build it tested, and — if
+# ANKI_EXPECT_GIT_SHA is set — abort early when the device runs a different
+# commit, so you can't silently test a stale APK.
+EXPECT_GIT_SHA = os.environ.get("ANKI_EXPECT_GIT_SHA")
+
+
+def _fetch_build_info():
+    try:
+        return client.invoke("buildInfo", url=client.base_url())
+    except Exception:
+        return None
+
+
+def pytest_report_header(config):
+    info = _fetch_build_info()
+    if info is None:
+        return "AnkiconnectAndroid build: unknown (server unreachable, or APK too old for buildInfo)"
+    return ("AnkiconnectAndroid build: {versionName} "
+            "(git {gitSha}, code {versionCode})".format(
+                versionName=info.get("versionName"),
+                gitSha=info.get("gitSha"),
+                versionCode=info.get("versionCode")))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _verify_build(base_url):
+    """Abort the session if the device's build doesn't match ANKI_EXPECT_GIT_SHA."""
+    if not EXPECT_GIT_SHA:
+        return
+    try:
+        info = client.invoke("buildInfo", url=base_url)
+    except (requests.ConnectionError, requests.Timeout):
+        return  # unreachable is handled as a skip by the `anki` fixture
+    except Exception:
+        pytest.exit(
+            f"Build check: device does not support 'buildInfo' but ANKI_EXPECT_GIT_SHA="
+            f"{EXPECT_GIT_SHA} was requested. The installed APK predates build-identity; "
+            "install the matching build.", returncode=3)
+    actual = info.get("gitSha")
+    if actual != EXPECT_GIT_SHA:
+        pytest.exit(
+            f"Build mismatch: device runs git {actual}, expected {EXPECT_GIT_SHA}. "
+            "Install the matching APK before running the suite.", returncode=3)
+
+
 # Notes created by the suite are tagged with this so they can be cleaned up.
 TEST_TAG = "acandroid_test"
 

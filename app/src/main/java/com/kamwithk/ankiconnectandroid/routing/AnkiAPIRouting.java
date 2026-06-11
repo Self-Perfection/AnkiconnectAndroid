@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.kamwithk.ankiconnectandroid.BuildConfig;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.BinaryFile;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.CardAPI;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.DeckAPI;
@@ -43,6 +44,8 @@ public class AnkiAPIRouting {
         switch (Parser.get_action(raw_json)) {
             case "version":
                 return version();
+            case "buildInfo":
+                return buildInfo();
             case "deckNames":
                 return deckNames();
             case "deckNamesAndIds":
@@ -156,6 +159,17 @@ public class AnkiAPIRouting {
 
     private String version() {
         return "6";
+    }
+
+    // Non-standard action: reports the git commit and version this APK was built
+    // from, so a running build can be matched to its source (see CLAUDE.md "Build
+    // identity"). Desktop AnkiConnect has no such action; clients must not rely on it.
+    private String buildInfo() {
+        JsonObject info = new JsonObject();
+        info.addProperty("gitSha", BuildConfig.GIT_SHA);
+        info.addProperty("versionName", BuildConfig.VERSION_NAME);
+        info.addProperty("versionCode", BuildConfig.VERSION_CODE);
+        return Parser.gson.toJson(info);
     }
 
     private String default_version() {

@@ -8,15 +8,41 @@ plugins {
 def keystorePath = System.getenv("ANKICONNECT_KEYSTORE_PATH")
 def hasReleaseSigning = keystorePath != null && !keystorePath.isEmpty() && file(keystorePath).exists()
 
+// Build identity (see CLAUDE.md "Build identity"): every build carries the git
+// commit it was produced from, so an installed APK can be matched to its source.
+// gitSha goes into versionName + BuildConfig.GIT_SHA; the CI run number drives a
+// monotonically increasing versionCode so `adb install -r` always reinstalls.
+def gitOutput(List<String> args, File dir) {
+    try {
+        def proc = new ProcessBuilder(args).directory(dir).redirectErrorStream(true).start()
+        proc.waitFor()
+        return proc.exitValue() == 0 ? proc.inputStream.text.trim() : ""
+    } catch (Exception ignored) {
+        return ""
+    }
+}
+
+def gitSha = gitOutput(['git', 'rev-parse', '--short=8', 'HEAD'], rootProject.projectDir)
+if (gitSha.isEmpty()) { gitSha = "unknown" }
+def runNumber = System.getenv("GITHUB_RUN_NUMBER")
+def baseVersionName = "1.15"
+def computedVersionCode = runNumber ? 1000 + runNumber.toInteger() : 15
+def computedVersionName = baseVersionName + (runNumber ? ".${runNumber}" : "") + "+g${gitSha}"
+
 android {
     compileSdk 33
+
+    buildFeatures {
+        buildConfig true
+    }
 
     defaultConfig {
         applicationId "com.kamwithk.ankiconnectandroid"
         minSdk 26
         targetSdk 33
-        versionCode 15
-        versionName "1.15"
+        versionCode computedVersionCode
+        versionName computedVersionName
+        buildConfigField "String", "GIT_SHA", "\"${gitSha}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 

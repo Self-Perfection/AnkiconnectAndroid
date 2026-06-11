@@ -79,6 +79,22 @@ run in podman as an oracle (`localhost:8765`); every test must also pass there. 
 marker axes: depth (`smoke`/`core`/`edge`) and verification mode (`gui`/`manual`,
 opt-in via `--run-gui`/`--run-manual`).
 
+## Build identity
+
+Every build is stamped with the git commit it came from, so an installed APK can
+be matched to its source — otherwise a stale install silently fails the suite and
+you can't tell (this bit us once: a build with all the Phase 2 actions reported
+`unsupported action` because the device still ran an old APK).
+
+- `app/build.gradle` derives `versionName = "1.15[.<runNumber>]+g<sha>"`,
+  `versionCode = 1000 + GITHUB_RUN_NUMBER` (monotonic, so `adb install -r` always
+  reinstalls), and `buildConfigField GIT_SHA`. Visible in Settings → Apps.
+- Non-standard HTTP action **`buildInfo`** → `{gitSha, versionName, versionCode}`
+  (desktop AnkiConnect has no such action; clients must not depend on it).
+- `tests-android/conftest.py` prints the build in the report header, and if
+  `ANKI_EXPECT_GIT_SHA` is set, **aborts the session** when the device runs a
+  different commit. Set it to `git rev-parse --short=8 HEAD` of the build you flashed.
+
 ## Conventions
 
 - Project language and commit messages are **English**.
