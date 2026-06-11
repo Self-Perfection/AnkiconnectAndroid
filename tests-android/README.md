@@ -31,6 +31,24 @@ uv run pytest -m edge            # edge cases, error handling, regressions
 `-x` stops at the first failure, so a broken fundamental surfaces immediately.
 Tests are independent and self-cleaning — there is no required run order.
 
+### Verification mode (gui / manual are opt-in)
+
+A second, orthogonal axis: how a test is verified. Most tests are headless and
+fully automated. Two categories need opting into and are **skipped by default**,
+so a bare `uv run pytest` never opens a screen nor needs a human:
+
+```sh
+uv run pytest                    # default: gui + manual skipped
+uv run pytest --run-gui          # also run `gui` tests (open an AnkiDroid screen;
+                                 #   only the API contract is asserted)
+uv run pytest --run-manual       # also run `manual` tests (a human confirms the effect)
+uv run pytest -m core --run-gui  # composes with layers: core tests, gui included
+```
+
+The opt-in is flag-based (not `-m "not gui"`) on purpose, so passing `-m core`
+does not silently re-include gui/manual. `--run-gui` is handy against the
+desktop oracle, where opening a browser is offscreen and harmless.
+
 ## Running with pytest directly
 
 If you already have `pytest` and `requests` installed, just `pytest` works
@@ -83,23 +101,24 @@ One intentional tolerance for the desktop/AnkiDroid difference:
 
 ## Layout
 
-| File                 | Marker  | Purpose                                                             |
-| -------------------- | ------- | ------------------------------------------------------------------- |
-| `pyproject.toml`     | —       | Declares deps + registers markers; makes `uv run pytest` work       |
-| `client.py`          | —       | Thin client: `invoke(action, **params)` over the AnkiConnect JSON API |
-| `conftest.py`        | —       | Fixtures: base URL, an `anki` invoke fixture, test-note cleanup     |
-| `test_smoke.py`      | `smoke` | Smoke tests: `version`, `deckNames`, `modelNames`                   |
-| `test_koplugin.py`   | `core`  | koplugin scenario: requestPermission → addNote → notesInfo → deleteNotes |
-| `test_notes.py`      | `core`  | canAddNotes, canAddNotesWithErrorDetail, notesInfo, findNotes, updateNoteFields |
-| `test_models.py`     | `core`  | modelNamesAndIds, modelFieldNames read assertions (Basic model)     |
-| `test_decks.py`      | `core`  | deckNamesAndIds read assertion (Default present, int id)            |
-| `test_media.py`      | `core`  | storeMediaFile returns the filename (store-only; no retrieve/delete) |
-| `test_server.py`     | `core`  | `multi` batches actions; asserts per-request envelope shape + order |
-| `test_duplicates.py` | `edge`  | addNote rejects duplicates unless `options.allowDuplicate` is set   |
-| `test_errors.py`     | `edge`  | Unsupported action returns a clean error (no Java stack trace)      |
+Markers stack: the depth layer (`smoke`/`core`/`edge`) and the verification
+mode (`gui`/`manual`, opt-in) are independent.
 
-`guiBrowse` is implemented but intentionally untested: it is a GUI action with
-no assertable result in a headless HTTP suite.
+| File                 | Markers      | Purpose                                                             |
+| -------------------- | ------------ | ------------------------------------------------------------------- |
+| `pyproject.toml`     | —            | Declares deps + registers markers; makes `uv run pytest` work       |
+| `client.py`          | —            | Thin client: `invoke(action, **params)` over the AnkiConnect JSON API |
+| `conftest.py`        | —            | Fixtures + the `--run-gui`/`--run-manual` opt-in skip hook          |
+| `test_smoke.py`      | `smoke`      | Smoke tests: `version`, `deckNames`, `modelNames`                   |
+| `test_koplugin.py`   | `core`       | koplugin scenario: requestPermission → addNote → notesInfo → deleteNotes |
+| `test_notes.py`      | `core`       | canAddNotes, canAddNotesWithErrorDetail, notesInfo, findNotes, updateNoteFields |
+| `test_models.py`     | `core`       | modelNamesAndIds, modelFieldNames read assertions (Basic model)     |
+| `test_decks.py`      | `core`       | deckNamesAndIds read assertion (Default present, int id)            |
+| `test_media.py`      | `core`       | storeMediaFile returns the filename (store-only; no retrieve/delete) |
+| `test_server.py`     | `core`       | `multi` batches actions; asserts per-request envelope shape + order |
+| `test_gui.py`        | `core`,`gui` | GUI actions (guiBrowse): contract-only, opt in with `--run-gui`     |
+| `test_duplicates.py` | `edge`       | addNote rejects duplicates unless `options.allowDuplicate` is set   |
+| `test_errors.py`     | `edge`       | Unsupported action returns a clean error (no Java stack trace)      |
 
 Notes created by tests are tagged `acandroid_test`; the `cleanup_notes`
 fixture removes them via `deleteNotes` after each test.

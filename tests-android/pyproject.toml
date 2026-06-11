@@ -16,9 +16,15 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["."]
-# Layers, run with `-m`, from most fundamental to edge cases.
+# Two orthogonal axes (markers stack on one test):
+#  - Layer (depth): run with `-m`, from most fundamental to edge cases.
+#  - Verification mode: gui/manual are opt-in, DESELECTED by default; enable
+#    with --run-gui / --run-manual (see conftest.py). Everything else is
+#    headless and fully automated.
 markers = [
     "smoke: fundamental sanity checks (server reachable, permission granted)",
     "core: main happy-path behaviour of an action",
     "edge: edge cases, error handling, regressions",
+    "gui: triggers a GUI action whose real effect the API cannot read back; only the contract (clean envelope, no error) is asserted. Opt in with --run-gui",
+    "manual: needs a human to confirm the effect (a screen, KOReader, ...). Opt in with --run-manual",
 ]

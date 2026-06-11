@@ -13,6 +13,37 @@ import requests
 
 import client
 
+# --- opt-in test categories (verification-mode axis) -----------------------
+# Orthogonal to the smoke/core/edge layers. `gui` and `manual` tests are
+# DESELECTED by default and only run when explicitly opted into, so a bare
+# `uv run pytest` never opens AnkiDroid screens nor needs a human watching.
+#
+# Done via a collection hook + flags (not addopts `-m "not gui ..."`): a `-m`
+# expression on the command line replaces any `-m` from addopts, which would
+# silently re-include gui/manual. Flag-based skipping instead composes with
+# `-m core/edge` layer selection.
+_OPT_IN_MARKERS = {
+    "gui": ("--run-gui", "opens an AnkiDroid screen; only the API contract is asserted"),
+    "manual": ("--run-manual", "needs a human to confirm the effect"),
+}
+
+
+def pytest_addoption(parser):
+    for marker, (flag, help_text) in _OPT_IN_MARKERS.items():
+        parser.addoption(flag, action="store_true", default=False,
+                         help=f"run tests marked '{marker}' ({help_text})")
+
+
+def pytest_collection_modifyitems(config, items):
+    for marker, (flag, help_text) in _OPT_IN_MARKERS.items():
+        if config.getoption(flag):
+            continue
+        skip = pytest.mark.skip(reason=f"marked '{marker}'; pass {flag} to run ({help_text})")
+        for item in items:
+            if marker in item.keywords:
+                item.add_marker(skip)
+
+
 # Notes created by the suite are tagged with this so they can be cleaned up.
 TEST_TAG = "acandroid_test"
 

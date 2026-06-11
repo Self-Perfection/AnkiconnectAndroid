@@ -5,8 +5,9 @@ anki-connect's test_multi_request batches ["version"] x3 and asserts the
 result array of {"error", "result"} envelopes. Here we batch a couple of
 implemented read actions and assert the per-request envelope shape and order.
 
-guiBrowse is intentionally NOT tested: it is a GUI action with no assertable
-HTTP result in a headless suite.
+guiBrowse lives in test_gui.py (verification mode `gui`, opt-in via --run-gui):
+it is a GUI action whose real effect is not readable over HTTP, so only its
+contract is asserted there.
 
 Run with uv (no pip needed): ``uv run pytest test_server.py``.
 """

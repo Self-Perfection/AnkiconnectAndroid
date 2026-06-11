@@ -54,3 +54,23 @@ the *why* and the conventions for writing new tests.
   when a behaviour is genuinely impossible to assert there.
 - Files are grouped by topic (`test_<area>.py`); functions are `test_*`.
   pytest discovers them all — see README for the single run-all command.
+
+## Two marker axes
+
+Markers fall on two independent axes; a test may carry one from each.
+
+- **Depth** — `smoke` / `core` / `edge`. How fundamental the check is.
+- **Verification mode** — how the test is verified. Default (unmarked) is
+  headless and fully automated: assert the *real* result via the API. Two
+  opt-in categories are skipped unless their flag is passed (see `conftest.py`):
+  - `gui` (`--run-gui`): the action's real effect can't be read back over HTTP
+    (it opens a screen), so assert only the **contract** — a result of the
+    right shape, no error — never the on-screen effect. Mark an action `gui`
+    only when its effect is genuinely unobservable via the API; e.g. `guiBrowse`
+    (fires an intent, returns `[]`) is `gui`, but `guiSelectedNotes` → `[]`
+    returns a readable result and is a normal automated test.
+  - `manual` (`--run-manual`): needs a human to confirm (a screen looked right,
+    KOReader actually added a card). Keep these runnable but out of the default.
+- Make `gui`/`manual` opt-in via the conftest flags, **not** `addopts -m "not
+  gui"`: a `-m` on the command line replaces the addopts `-m`, silently
+  re-including them. Flag-based skipping composes with `-m` layer selection.
