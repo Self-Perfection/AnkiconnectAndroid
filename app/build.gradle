@@ -12,17 +12,17 @@ def hasReleaseSigning = keystorePath != null && !keystorePath.isEmpty() && file(
 // commit it was produced from, so an installed APK can be matched to its source.
 // gitSha goes into versionName + BuildConfig.GIT_SHA; the CI run number drives a
 // monotonically increasing versionCode so `adb install -r` always reinstalls.
-def gitOutput(List<String> args, File dir) {
-    try {
-        def proc = new ProcessBuilder(args).directory(dir).redirectErrorStream(true).start()
-        proc.waitFor()
-        return proc.exitValue() == 0 ? proc.inputStream.text.trim() : ""
-    } catch (Exception ignored) {
-        return ""
-    }
+// providers.exec is the configuration-cache-safe way to read git: starting a raw
+// external process at configuration time (ProcessBuilder / "...".execute()) is
+// rejected when the Gradle configuration cache is enabled.
+def gitSha = "unknown"
+try {
+    gitSha = providers.exec {
+        commandLine 'git', 'rev-parse', '--short=8', 'HEAD'
+    }.standardOutput.asText.get().trim()
+} catch (Exception ignored) {
+    // no git / not a repository: keep "unknown"
 }
-
-def gitSha = gitOutput(['git', 'rev-parse', '--short=8', 'HEAD'], rootProject.projectDir)
 if (gitSha.isEmpty()) { gitSha = "unknown" }
 def runNumber = System.getenv("GITHUB_RUN_NUMBER")
 def baseVersionName = "1.15"
