@@ -30,7 +30,10 @@ def computedVersionCode = runNumber ? 1000 + runNumber.toInteger() : 15
 def computedVersionName = baseVersionName + (runNumber ? ".${runNumber}" : "") + "+g${gitSha}"
 
 android {
-    compileSdk 33
+    // 36 is the minimum the AnkiDroid v2.24.0 api aar compiles against (its AAR
+    // metadata rejects anything lower). compile-only knob; targetSdk stays at 33
+    // so runtime behaviour is unchanged.
+    compileSdk 36
 
     buildFeatures {
         buildConfig true
