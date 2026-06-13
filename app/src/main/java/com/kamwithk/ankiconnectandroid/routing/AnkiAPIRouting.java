@@ -346,12 +346,29 @@ public class AnkiAPIRouting {
                 card.addProperty("modelName", noteObj.get("modelName").getAsString());
                 card.add("fields", noteObj.get("fields"));
             }
-            // Scheduler fields (due, interval, factor, queue, type, reps, lapses, mod, ...) are not
-            // exposed by FlashCardsContract.Card on the supported AnkiDroid version, so they are
-            // intentionally omitted rather than fabricated.
+            // Scheduler fields, present only when read from the real card row (cards URI; null on
+            // the synthetic fallback for old AnkiDroid). Emitted only when present rather than
+            // fabricated. AnkiConnect extras with no AnkiDroid source (mod, flags, nextReviews,
+            // css) stay absent.
+            addIfPresent(card, "type", info.type);
+            addIfPresent(card, "queue", info.queue);
+            addIfPresent(card, "due", info.due);
+            addIfPresent(card, "interval", info.interval);
+            addIfPresent(card, "factor", info.factor);
+            addIfPresent(card, "reps", info.reps);
+            addIfPresent(card, "lapses", info.lapses);
+            addIfPresent(card, "left", info.left);
             result.add(card);
         }
         return Parser.gson.toJson(result);
+    }
+
+    // Adds a numeric property only when non-null, so optional scheduler fields are omitted
+    // (not emitted as null/0) when the data source can't supply them.
+    private static void addIfPresent(JsonObject obj, String key, Long value) {
+        if (value != null) {
+            obj.addProperty(key, value);
+        }
     }
 
     private String modelStyling(JsonObject raw_json) throws Exception {

@@ -6,12 +6,12 @@ two-template model so each note yields two cards; AnkiconnectAndroid has no
 createModel, so these use the built-in ``Basic`` model (one card per note) and
 scope every query to TEST_TAG instead of the throwaway ``test_deck``.
 
-Important port-specific limit (see plan 2.2): AnkiDroid's FlashCardsContract
-exposes only a SUBSET of cardsInfo — note id, card ord, deckName, question,
-answer, fields, modelName. It has NO scheduler fields (due/interval/factor/
-queue/type/reps/lapses). Desktop returns the full set; the everywhere-true
-assertions below therefore touch only the common subset and never the
-scheduler fields.
+Since the AnkiDroid v2.24.0 bump (Phase 3), the port reports REAL card ids and
+the scheduler fields (type/queue/due/interval/factor/reps/lapses/left), read
+from the provider's top-level ``cards`` URI. Desktop's extras with no AnkiDroid
+source (mod, flags, nextReviews, css) stay absent. On AnkiDroid older than
+v2.24.0 the port falls back to synthetic card ids with no scheduler fields, so
+the scheduler-field test below requires a device with the ``cards`` URI.
 
 Run with uv (no pip needed): ``uv run pytest test_cards.py``.
 """
@@ -53,8 +53,9 @@ def test_findCards_by_tag(anki, cleanup_notes):
 
 def test_findCards_matches_findNotes_for_basic(anki, cleanup_notes):
     # Metamorphic: for the single-template Basic model, each note has exactly
-    # one card, so findCards and findNotes over the same query agree 1:1. This
-    # is the port's intended implementation (findNotes -> expand to card ids).
+    # one card, so findCards and findNotes over the same query agree 1:1.
+    # Holds on both paths (real cards URI, and the synthetic findNotes->expand
+    # fallback).
     anki("addNote", note=make_note(front="acandroid fc match 1"))
     anki("addNote", note=make_note(front="acandroid fc match 2"))
 
@@ -99,6 +100,35 @@ def test_cardsInfo_with_valid_ids(anki, cleanup_notes):
     assert fields["Front"]["value"] == "acandroid cardsinfo front"
     assert fields["Back"]["value"] == "acandroid cardsinfo back"
     assert isinstance(fields["Front"]["order"], int)
+
+
+def test_cardsInfo_scheduler_fields(anki, cleanup_notes):
+    # Since the v2.24.0 bump the port reads the real card row, so cardsInfo
+    # carries the scheduler fields desktop returns. Requires a device exposing
+    # the ``cards`` URI (AnkiDroid >= v2.24.0); pre-bump AnkiDroid uses synthetic
+    # ids with no scheduler fields and will (correctly) fail this.
+    note_id = int(anki("addNote", note=make_note(front="acandroid sched fields")))
+    card_ids = anki("findCards", query=f"nid:{note_id}")
+    info = anki("cardsInfo", cards=card_ids)[0]
+
+    for key in ("type", "queue", "due", "interval", "factor", "reps", "lapses", "left"):
+        assert key in info, f"cardsInfo missing scheduler field {key!r}"
+        assert isinstance(info[key], int)
+
+
+def test_findCards_returns_real_card_ids(anki, cleanup_notes):
+    # notesInfo[..]["cards"] and findCards("nid:..") must report the SAME card
+    # ids (both sourced from the same card rows), and cardsInfo on them resolves
+    # back to the note. Guards the cross-action cid consistency the migration is
+    # about. True on desktop and on the real-cid AnkiDroid path.
+    note_id = int(anki("addNote", note=make_note(front="acandroid real cids")))
+
+    from_find = sorted(int(c) for c in anki("findCards", query=f"nid:{note_id}"))
+    from_notes = sorted(int(c) for c in anki("notesInfo", notes=[note_id])[0]["cards"])
+    assert from_find == from_notes
+
+    for entry in anki("cardsInfo", cards=from_find):
+        assert int(entry["note"]) == note_id
 
 
 def test_cardsInfo_with_incorrect_id(anki):
