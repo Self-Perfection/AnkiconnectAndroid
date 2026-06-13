@@ -136,3 +136,24 @@ def test_cardsInfo_with_incorrect_id(anki):
     # An unknown card id yields an empty dict entry (not an error).
     result = anki("cardsInfo", cards=[123])
     assert result == [{}]
+
+
+# --- changeDeck (anki-connect TestDeckSelected / changeDeck) ----------------
+# Fixed target name so repeated runs reuse one deck (changeDeck get-or-creates it);
+# deleteDecks isn't available on AnkiDroid to clean it up.
+CHANGEDECK_TARGET = "acandroid_changedeck_target"
+
+
+def test_changeDeck_moves_cards(anki, cleanup_notes):
+    # Source: tests/test_cards.py::test_changeDeck. changeDeck returns null and
+    # moves the cards; it get-or-creates the target deck (like desktop).
+    note_id = int(anki("addNote", note=make_note(front="acandroid changedeck")))
+    cards = anki("findCards", query=f"nid:{note_id}")
+    assert cards
+
+    assert anki("changeDeck", cards=cards, deck=CHANGEDECK_TARGET) is None
+    assert anki("cardsInfo", cards=cards)[0]["deckName"] == CHANGEDECK_TARGET
+
+    # Move back to TEST_DECK so the note ends where cleanup expects (tidiness).
+    anki("changeDeck", cards=cards, deck=TEST_DECK)
+    assert anki("cardsInfo", cards=cards)[0]["deckName"] == TEST_DECK

@@ -42,3 +42,22 @@ def test_multi_all_version(anki):
     # Closest to anki-connect's exact case: ["version"] repeated.
     result = anki("multi", actions=[_req("version")] * 3)
     assert result == [{"error": None, "result": 6}] * 3
+
+
+def test_multi_isolates_a_failing_subaction(anki):
+    # A failing sub-action must NOT abort the batch: its slot carries the error,
+    # the surrounding actions still succeed (desktop AnkiConnect behaviour). Real
+    # clients (anki_notes_creator) batch best-effort actions like deleteMediaFile,
+    # which are unsupported here -- without isolation that one error would poison
+    # the whole multi.
+    result = anki("multi", actions=[
+        _req("version"),
+        _req("totallyBogusAction_acandroid"),
+        _req("deckNames"),
+    ])
+    assert len(result) == 3
+    assert result[0]["result"] == 6 and result[0]["error"] is None
+    # failed slot: result null, error message present (substring shared with desktop)
+    assert result[1]["result"] is None
+    assert "unsupported action" in result[1]["error"]
+    assert result[2]["error"] is None and isinstance(result[2]["result"], list)

@@ -1,8 +1,10 @@
 package com.kamwithk.ankiconnectandroid.ankidroid_api;
 
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.net.Uri;
 
 import com.ichi2.anki.FlashCardsContract;
 
@@ -69,5 +71,27 @@ public class DeckAPI {
 
         // Can't find deck
         throw new Exception("Couldn't get deck ID");
+    }
+
+    /**
+     * Deck id for {@code name}, creating the deck (and any missing parents, via Anki's "::"
+     * nesting) if it doesn't exist. Matches desktop AnkiConnect's get-or-create semantics
+     * (createDeck/changeDeck both call col.decks.id). Inserting an already-existing name on the
+     * provider throws, so we look it up first.
+     */
+    public long getOrCreateDeckID(String name) throws Exception {
+        for (Map.Entry<Long, String> entry : getDeckList().entrySet()) {
+            if (entry.getValue().equalsIgnoreCase(name)) {
+                return entry.getKey();
+            }
+        }
+
+        ContentValues values = new ContentValues();
+        values.put(FlashCardsContract.Deck.DECK_NAME, name);
+        Uri uri = resolver.insert(FlashCardsContract.Deck.CONTENT_ALL_URI, values);
+        if (uri == null || uri.getLastPathSegment() == null) {
+            throw new Exception("could not create deck: " + name);
+        }
+        return Long.parseLong(uri.getLastPathSegment());
     }
 }

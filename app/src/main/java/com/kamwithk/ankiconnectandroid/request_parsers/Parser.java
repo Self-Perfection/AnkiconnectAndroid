@@ -48,6 +48,12 @@ public class Parser {
         return raw_data.get("params").getAsJsonObject().get("modelName").getAsString();
     }
 
+    // params.deck — used by changeDeck ({cards, deck}) and createDeck ({deck}).
+    // changeDeck's cards reuse getCardIds.
+    public static String getDeckParam(JsonObject raw_data) {
+        return raw_data.get("params").getAsJsonObject().get("deck").getAsString();
+    }
+
     public static Map<String, String> getNoteValues(JsonObject raw_data) {
         Type fieldType = new TypeToken<Map<String, String>>() {}.getType();
         return gson.fromJson(raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("fields"), fieldType);

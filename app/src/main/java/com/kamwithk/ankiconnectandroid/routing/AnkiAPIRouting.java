@@ -2,6 +2,7 @@ package com.kamwithk.ankiconnectandroid.routing;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.kamwithk.ankiconnectandroid.BuildConfig;
@@ -74,6 +75,10 @@ public class AnkiAPIRouting {
                 return addTags(raw_json);
             case "findCards":
                 return findCards(raw_json);
+            case "changeDeck":
+                return changeDeck(raw_json);
+            case "createDeck":
+                return createDeck(raw_json);
             case "cardsInfo":
                 return cardsInfo(raw_json);
             case "modelStyling":
@@ -97,12 +102,22 @@ public class AnkiAPIRouting {
                 JsonArray results = new JsonArray();
 
                 for (JsonElement jsonElement : actions) {
-                    int version = Parser.get_version(jsonElement.getAsJsonObject(), 4);
-                    String routeResult = findRoute(jsonElement.getAsJsonObject());
-
-                    JsonElement routeResultJson = JsonParser.parseString(routeResult);
-                    JsonElement response = formatSuccessReply(routeResultJson, version);
-                    results.add(response);
+                    JsonObject actionObj = jsonElement.getAsJsonObject();
+                    int version = Parser.get_version(actionObj, 4);
+                    try {
+                        // Isolate each sub-action like desktop AnkiConnect: a failing action
+                        // becomes a {result:null, error:<msg>} slot, the batch keeps going.
+                        // Otherwise one unsupported action (e.g. deleteMediaFile) poisons the
+                        // whole multi -- which breaks real clients (anki_notes_creator).
+                        JsonElement routeResultJson = JsonParser.parseString(findRoute(actionObj));
+                        results.add(formatSuccessReply(routeResultJson, version));
+                    } catch (Exception e) {
+                        Log.e("AnkiConnectAndroid", "Error in multi sub-action", e);
+                        JsonObject errorReply = new JsonObject();
+                        errorReply.add("result", JsonNull.INSTANCE);
+                        errorReply.addProperty("error", errorMessage(e));
+                        results.add(errorReply);
+                    }
                 }
 
                 return Parser.gson.toJson(results);
@@ -143,14 +158,20 @@ public class AnkiAPIRouting {
             Map<String, String> response = new HashMap<>();
             response.put("result", null);
 
-            String message = e.getMessage();
-            if (message == null || message.isEmpty()) {
-                message = e.getClass().getSimpleName();
-            }
-            response.put("error", message);
+            response.put("error", errorMessage(e));
 
             return newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "text/json", Parser.gson.toJson(response));
         }
+    }
+
+    // Human-readable error for the "error" field: the exception message, or its class name
+    // when there is none. Never the stack trace (that goes to Log.e).
+    private static String errorMessage(Exception e) {
+        String message = e.getMessage();
+        if (message == null || message.isEmpty()) {
+            message = e.getClass().getSimpleName();
+        }
+        return message;
     }
 
     private NanoHTTPD.Response returnResponse(String response) {
@@ -290,6 +311,21 @@ public class AnkiAPIRouting {
 
     private String findCards(JsonObject raw_json) {
         return Parser.gson.toJson(integratedAPI.cardAPI.findCards(Parser.getNoteQuery(raw_json)));
+    }
+
+    // changeDeck: move the given cards to a deck (by name), creating it if missing -- like desktop
+    // AnkiConnect, whose changeDeck does col.decks.id(deck) (get-or-create). Returns null.
+    private String changeDeck(JsonObject raw_json) throws Exception {
+        ArrayList<Long> cardIds = Parser.getCardIds(raw_json);
+        String deckName = Parser.getDeckParam(raw_json);
+        long deckId = deckAPI.getOrCreateDeckID(deckName);
+        integratedAPI.cardAPI.changeDeck(cardIds, deckId);
+        return "null";
+    }
+
+    // createDeck: get-or-create the deck and return its id (desktop returns col.decks.id(deck)).
+    private String createDeck(JsonObject raw_json) throws Exception {
+        return Parser.gson.toJson(deckAPI.getOrCreateDeckID(Parser.getDeckParam(raw_json)));
     }
 
     private String cardsInfo(JsonObject raw_json) throws Exception {

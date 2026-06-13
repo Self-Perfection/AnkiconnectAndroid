@@ -10,7 +10,7 @@ Which of desktop [AnkiConnect](https://git.sr.ht/~foosoft/anki-connect#supported
 is pinned by `tests-android/test_schema_parity.py` against the desktop oracle.
 Keep this table in sync when you add or change an action.
 
-**Status: 24 of 122 actions return a usable result** (23 full ✅ + 1 degraded ⚠️).
+**Status: 26 of 122 actions return a usable result** (25 full ✅ + 1 degraded ⚠️).
 3 more return an explicit *not supported* error 🚫 instead of silent garbage.
 
 | Mark | Meaning |
@@ -40,7 +40,7 @@ Keep this table in sync when you add or change an action.
 | `cardsInfo` | ✅ | ✅ | Real cid + scheduler fields (`type/queue/due/interval/factor/reps/lapses/left`) and `css` via the `cards` URI. Desktop extras with no provider source — `mod`, `flags`, `nextReviews` — are omitted. On AnkiDroid < v2.24.0: synthetic cid, no scheduler fields. |
 | `cardsModTime` | ✅ | ❌ | No card mod-time column in the contract. |
 | `cardsToNotes` | ✅ | ❌ | |
-| `changeDeck` | ✅ | ❌ | Feasible: `Card.DECK_ID` is writable (not onto filtered decks). Used by anki_notes_creator. |
+| `changeDeck` | ✅ | ✅ | Moves cards via `notes/<nid>/cards/<ord>` (`DECK_ID`); get-or-creates the target deck. Not onto filtered/dynamic decks. Used by anki_notes_creator. |
 | `findCards` | ✅ | ✅ | Real cids via `col.findCards(<query>)` on the `cards` URI. On AnkiDroid < v2.24.0: falls back to `findNotes` → expand each note to synthetic cids `(noteId<<7)|ord`. |
 | `forgetCards` | ✅ | ❌ | |
 | `getEaseFactors` | ✅ | ❌ | Now feasible: `factor` column. |
@@ -84,7 +84,7 @@ Keep this table in sync when you add or change an action.
 | Action | Desktop | Android | Note |
 |--------|:-------:|:-------:|------|
 | `cloneDeckConfigId` | ✅ | ❌ | |
-| `createDeck` | ✅ | ❌ | |
+| `createDeck` | ✅ | ✅ | Get-or-create via `Deck.CONTENT_ALL_URI` insert; returns the deck id. Anki auto-creates parent decks for `A::B` names. |
 | `deckNameFromId` | ✅ | ❌ | |
 | `deckNames` | ✅ | ✅ | Via `Deck.CONTENT_ALL_URI`. |
 | `deckNamesAndIds` | ✅ | ✅ | |
@@ -197,7 +197,7 @@ Keep this table in sync when you add or change an action.
 | Action | Desktop | Android | Note |
 |--------|:-------:|:-------:|------|
 | `apiReflect` | ✅ | ❌ | |
-| `multi` | ✅ | ✅ | |
+| `multi` | ✅ | ✅ | Per-action error isolation like desktop: a failing sub-action becomes a `{result:null,error}` slot, the batch continues. |
 | `requestPermission` | ✅ | ✅ | Returns granted so clients (koplugin) go online. |
 | `version` | ✅ | ✅ | Reports 6. |
 

@@ -2,6 +2,7 @@
 package com.kamwithk.ankiconnectandroid.ankidroid_api;
 
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -124,6 +125,35 @@ public class CardAPI {
     private Uri cardsUriForNote(long noteId) {
         Uri noteUri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, Long.toString(noteId));
         return Uri.withAppendedPath(noteUri, "cards");
+    }
+
+    /**
+     * Moves each card to {@code deckId}. The provider only accepts a deck change on the
+     * {@code notes/<noteId>/cards/<ord>} URI (there is no update path on the {@code cards/#} URI), so
+     * we resolve each card id to its (noteId, ord): from the real card row when the cards URI is
+     * available, or by unpacking the synthetic id otherwise. Unknown card ids are skipped.
+     * Filtered (dynamic) decks are rejected by AnkiDroid.
+     */
+    public void changeDeck(List<Long> cardIds, long deckId) {
+        for (long cardId : cardIds) {
+            long noteId;
+            int ord;
+            if (supportsCardsUri()) {
+                CardInfo info = cardInfo(cardId);
+                if (info == null) {
+                    continue;
+                }
+                noteId = info.note;
+                ord = info.ord;
+            } else {
+                noteId = cardIdToNoteId(cardId);
+                ord = cardIdToOrd(cardId);
+            }
+            Uri cardOrdUri = Uri.withAppendedPath(cardsUriForNote(noteId), Integer.toString(ord));
+            ContentValues values = new ContentValues();
+            values.put(FlashCardsContract.Card.DECK_ID, deckId);
+            resolver.update(cardOrdUri, values, null, null);
+        }
     }
 
     /**
