@@ -98,7 +98,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.9.0'
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
     implementation 'org.nanohttpd:nanohttpd-nanolets:2.3.1'
-    implementation 'com.github.ankidroid:Anki-Android:2.17alpha14'
+    implementation 'com.github.ankidroid:Anki-Android:v2.24.0'
     implementation 'org.jsoup:jsoup:1.14.3'
     implementation 'androidx.preference:preference:1.2.0'
 

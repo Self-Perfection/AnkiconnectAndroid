@@ -39,16 +39,21 @@ can do — the contract has changed a lot (e.g. current `main` has a top-level `
 
 Three surfaces that diverge — keep them distinct:
 1. **Compile-time** = the API jar in `app/build.gradle` (`com.github.ankidroid:Anki-Android:<tag>`).
-   Currently `2.17alpha14` (≈2023, **being bumped — Phase 0.4**). Determines which
-   symbols Java can reference.
+   Currently `v2.24.0` (latest stable; bumped from `2.17alpha14` in Phase 0.4). Determines
+   which symbols Java can reference. NB: the newer `v2.25.0alpha1` tag is **not** usable —
+   its `jitpack.yml` installs a JBR JDK that JitPack's build image can't run
+   (`GLIBC_2.27 not found`), so `:api:publishToMavenLocal` fails. `v2.24.0` already has
+   the `cards`/`cards/#` URI, real `Card._ID`, and scheduler columns, so nothing is lost.
 2. **Runtime** = the AnkiDroid version **installed on the device**. The provider runs
    in *its* process, so actual behaviour depends on it. (Get it:
    `adb shell dumpsys package com.ichi2.anki | grep versionName`.)
 3. **Upstream `main` / latest release** (v2.24/v2.25) — where the API is heading.
 
-A local sparse vendor of the AnkiDroid sources (pinned to the dependency tag) is the
-intended greppable reference; until it exists, fetch the two files above from the
-AnkiDroid repo at the right ref.
+A local clone of the AnkiDroid sources lives at `../Anki-Android` (remote
+`ankidroid/Anki-Android`, branch `main` ≈ 2.25.0alpha1) — use it as the greppable
+reference. It tracks `main`, slightly ahead of the `v2.24.0` dependency tag, so when a
+symbol's existence is load-bearing, confirm it at the dependency tag (fetch the file
+from the repo at `v2.24.0`).
 
 ## Build & dev workflow
 
