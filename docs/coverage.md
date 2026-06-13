@@ -20,12 +20,29 @@ Keep this table in sync when you add or change an action.
 | 🚫 | Cannot be done via the AnkiDroid API; returns a clean *not supported* error (no Java stack trace). |
 | ❌ | Not implemented yet. |
 
-> **Runtime matters.** The AnkiDroid `FlashCardsContract` provider runs in the
-> *installed AnkiDroid's* process, so some behaviour depends on the device's
-> AnkiDroid version, not on this app's build. The compile-time dependency is
-> AnkiDroid **v2.24.0**. Notably, the real-card-id path (see `cardsInfo`/`findCards`)
-> needs the device to expose the top-level `cards` URI (AnkiDroid ≥ v2.24.0); on
-> older AnkiDroid the port feature-detects this and falls back to a degraded mode.
+> **Two different "versions" — don't conflate them.**
+>
+> *Compile-time* (`app/build.gradle` → `Anki-Android:2.24.0`): we link the AAR only
+> for the `AddContentApi` helper and the `FlashCardsContract` **constants** — the URI
+> strings (`content://com.ichi2.anki.flashcards/cards`) and column names (`REPS`,
+> `RAW_QUEUE`, `INTERVAL`, …). These are inlined into our APK at build time. The AAR
+> version just fixes *which provider names we know about*; we do not ship or run any
+> AnkiDroid code.
+>
+> *Runtime*: every `ContentResolver` call is served by the **installed AnkiDroid's**
+> process, whatever its version. AnkiDroid's provider contract is additive and stable
+> (third-party integrations depend on it), so:
+>
+> - **AnkiDroid ≥ v2.24.0** — full mode: real card ids, scheduler fields, `css`.
+> - **AnkiDroid < v2.24.0** — *degraded, not broken*: the top-level `cards` URI is
+>   absent, so the port feature-detects this (`supportsCardsUri()`, a probe query that
+>   catches the failure) and falls back to synthetic card ids `(noteId<<7)|ord` with no
+>   scheduler fields.
+>
+> So **v2.24.0 is a feature floor, not a hard pin** — newer AnkiDroid works, older
+> degrades gracefully. The only thing that would truly break a single action is a
+> future AnkiDroid *renaming/removing* a column or URI whose name we inlined; the
+> feature-detection exists to catch exactly that instead of trusting it blindly.
 
 ---
 
