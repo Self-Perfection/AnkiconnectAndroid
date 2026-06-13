@@ -324,6 +324,10 @@ public class AnkiAPIRouting {
             }
         }
 
+        // css is the note type's styling; desktop includes it per card. Look it up by model name
+        // (Model.CSS via modelStyling), deduped across cards that share a model.
+        Map<String, String> cssByModel = new HashMap<>();
+
         JsonArray result = new JsonArray();
         for (CardAPI.CardInfo info : cards) {
             if (info == null) {
@@ -340,16 +344,21 @@ public class AnkiAPIRouting {
             card.addProperty("answer", info.answer);
             card.addProperty("note", info.note);
             card.addProperty("deckName", deckIdToName.get(info.deckId));
-            // modelName + fields come from the card's note (desktop includes both).
+            // modelName + fields + css come from the card's note (desktop includes all three).
             JsonObject noteObj = noteJsonById.get(info.note);
             if (noteObj != null) {
-                card.addProperty("modelName", noteObj.get("modelName").getAsString());
+                String modelName = noteObj.get("modelName").getAsString();
+                card.addProperty("modelName", modelName);
                 card.add("fields", noteObj.get("fields"));
+                if (!cssByModel.containsKey(modelName)) {
+                    cssByModel.put(modelName, modelAPI.modelStyling(modelName));
+                }
+                card.addProperty("css", cssByModel.get(modelName));
             }
             // Scheduler fields, present only when read from the real card row (cards URI; null on
             // the synthetic fallback for old AnkiDroid). Emitted only when present rather than
-            // fabricated. AnkiConnect extras with no AnkiDroid source (mod, flags, nextReviews,
-            // css) stay absent.
+            // fabricated. AnkiConnect extras with no AnkiDroid source (mod, flags, nextReviews)
+            // stay absent.
             addIfPresent(card, "type", info.type);
             addIfPresent(card, "queue", info.queue);
             addIfPresent(card, "due", info.due);

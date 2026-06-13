@@ -40,6 +40,17 @@ the *why* and the conventions for writing new tests.
    payloads (`test_koplugin.py`); capturing an actual request beats an
    idealised one.
 
+5. **Pin the whole response schema, not anki-connect's chosen subset
+   (`test_schema_parity.py`).** anki-connect's own tests assert a hand-picked
+   few fields per response, so a faithful port can silently drop the rest and
+   still pass — `notesInfo` shipped "complete" without `cards`/`mod` because
+   their `test_notesInfo` checks neither. For every action returning a
+   structured object, record the desktop oracle's full key set and assert our
+   response contains it, minus an **explicit, documented** unsupported list
+   (each key with a reason it has no AnkiDroid source). Dropping a field means
+   moving it to that list, not deleting an assertion. When you add a new
+   object-returning action, add its key set there in the same change.
+
 ## Conventions
 
 - Each test is **independent and self-cleaning**: it creates its own state and

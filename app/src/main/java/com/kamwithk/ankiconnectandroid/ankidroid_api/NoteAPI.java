@@ -20,7 +20,7 @@ public class NoteAPI {
     private static final String[] MODEL_PROJECTION = {FlashCardsContract.Note.MID};
     private static final String[] TAGS_PROJECTION = {FlashCardsContract.Note.TAGS};
     private static final String[] NOTE_ID_PROJECTION = {FlashCardsContract.Note._ID};
-    private static final String[] NOTES_INFO_PROJECTION = {FlashCardsContract.Note._ID, FlashCardsContract.Note.MID, FlashCardsContract.Note.TAGS, FlashCardsContract.Note.FLDS};
+    private static final String[] NOTES_INFO_PROJECTION = {FlashCardsContract.Note._ID, FlashCardsContract.Note.MID, FlashCardsContract.Note.TAGS, FlashCardsContract.Note.FLDS, FlashCardsContract.Note.MOD};
 
     public NoteAPI(Context context) {
         this.context = context;
@@ -186,13 +186,15 @@ public class NoteAPI {
         private final String modelName;
         private final List<String> tags;
         private final Map<String, NoteInfoField> fields;
+        private final long mod;
 
         public NoteInfo(long noteId, String modelName, List<String> tags, Map<String,
-                NoteInfoField> fields) {
+                NoteInfoField> fields, long mod) {
             this.noteId = noteId;
             this.modelName = modelName;
             this.tags = tags;
             this.fields = fields;
+            this.mod = mod;
         }
 
         public long getNoteId() {
@@ -261,9 +263,11 @@ public class NoteAPI {
                 int midIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.MID);
                 int tagsIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.TAGS);
                 int fldsIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.FLDS);
+                int modIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.MOD);
 
                 long id = cursor.getLong(idIdx);
                 long mid = cursor.getLong(midIdx);
+                long mod = cursor.getLong(modIdx);
                 List<String> tags = Arrays.asList(Utility.splitTags(cursor.getString(tagsIdx)));
                 String[] fieldValues = Utility.splitFields(cursor.getString(fldsIdx));
                 Model model = null;
@@ -288,7 +292,7 @@ public class NoteAPI {
                     NoteInfoField noteInfoField = new NoteInfoField(fieldValue, i);
                     fields.put(fieldName, noteInfoField);
                 }
-                NoteInfo noteInfo = new NoteInfo(id, model.getModelName(), tags, fields);
+                NoteInfo noteInfo = new NoteInfo(id, model.getModelName(), tags, fields, mod);
                 notesInfoList.add(noteInfo);
             }
         }
