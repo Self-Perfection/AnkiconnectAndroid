@@ -1,5 +1,9 @@
 # Actions
 
+This page documents the actions AnkiconnectAndroid **implements**. For the full
+matrix of all 122 Anki-Connect actions — including partial, not-supported, and
+not-yet-implemented ones — see [coverage.md](./coverage.md).
+
 All actions here work exactly the same as [Anki-Connect](https://git.sr.ht/~foosoft/anki-connect#supported-actions) unless specified otherwise.
 
 All calls support the version `<= 4` and `> 4` format.

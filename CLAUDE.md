@@ -6,8 +6,9 @@ browser extension, yomitan, …) work against AnkiDroid over HTTP.
 
 Priorities: (1) `anki.koplugin`, (2) `anki_notes_creator`, (3) everything the
 AnkiDroid API can expose; the physically-impossible rest = honest *not supported*
-errors. Full plan: `../AnkiconnectAndroid-improvement-plan.md`; coverage matrix:
-`../anki-connect-android-api-coverage.md`.
+errors. Full plan: `../AnkiconnectAndroid-improvement-plan.md`; **coverage matrix:
+[`docs/coverage.md`](docs/coverage.md)** (in-repo; keep it in sync with the router's
+`switch` when you add or change an action).
 
 ## Architecture
 

@@ -286,7 +286,7 @@ Some examples:
 
 
 ## Developer Info
-For developers who are interested in using the API, please see [docs/api.md](./docs/api.md) for a list of all supported API calls.
+For developers who are interested in using the API, please see [docs/api.md](./docs/api.md) for a list of all supported API calls, and [docs/coverage.md](./docs/coverage.md) for the full matrix of all 122 Anki-Connect actions (implemented, partial, not-supported, or not-yet-implemented).
 
 ## Contributing
 The primary goal of Ankiconnect Android was to support card creation with Yomitan.
