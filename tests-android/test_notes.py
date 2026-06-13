@@ -127,6 +127,28 @@ def test_notesInfo(anki, cleanup_notes):
     assert isinstance(fields["Back"]["order"], int)
     assert fields["Front"]["order"] != fields["Back"]["order"]
 
+    # cards: AnkiConnect lists the note's card ids. Basic yields exactly one card.
+    # Assert shape only (ints) -- the id values differ between servers (real cid on
+    # desktop, synthetic on AnkiDroid), so don't assert specific numbers.
+    cards = info["cards"]
+    assert isinstance(cards, list) and len(cards) == 1
+    assert all(isinstance(c, int) for c in cards)
+
+
+def test_notesInfo_cards_round_trip_through_cardsInfo(anki, cleanup_notes):
+    # The card ids notesInfo reports must be usable as cardsInfo input and resolve
+    # back to the same note (true of real cids on desktop and synthetic ids here).
+    note_id = int(anki("addNote", note=make_note(front="acandroid info roundtrip")))
+
+    cards = anki("notesInfo", notes=[note_id])[0]["cards"]
+    assert cards, "notesInfo returned no cards for a freshly added note"
+
+    info = anki("cardsInfo", cards=cards)
+    assert len(info) == len(cards)
+    for entry in info:
+        assert entry, "cardsInfo returned {} for a card id that notesInfo produced"
+        assert int(entry["note"]) == note_id
+
 
 # --- findNotes (anki-connect test_findNotes) -------------------------------
 

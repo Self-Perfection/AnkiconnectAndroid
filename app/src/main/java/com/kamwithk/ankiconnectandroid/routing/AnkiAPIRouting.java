@@ -381,7 +381,29 @@ public class AnkiAPIRouting {
 
     private String notesInfo(JsonObject raw_json) throws Exception {
         ArrayList<Long> noteIds = Parser.getNoteIds(raw_json);
-        return Parser.gson.toJson(integratedAPI.noteAPI.notesInfo(noteIds));
+
+        JsonArray result = new JsonArray();
+        // notesInfo([]) would build an empty "nid:" query and return null; guard like
+        // cardsInfo so toJsonTree(...).getAsJsonArray() doesn't blow up.
+        if (!noteIds.isEmpty()) {
+            JsonElement tree = Parser.gson.toJsonTree(integratedAPI.noteAPI.notesInfo(noteIds));
+            if (tree.isJsonArray()) {
+                for (JsonElement el : tree.getAsJsonArray()) {
+                    JsonObject noteObj = el.getAsJsonObject();
+                    long noteId = noteObj.get("noteId").getAsLong();
+                    // cards: desktop AnkiConnect lists the note's card ids here. Use the same
+                    // synthetic (noteId<<7|ord) ids as findCards/cardsInfo so the values
+                    // round-trip through cardsInfo. (Phase 3 will migrate all three to real cids.)
+                    JsonArray cardsArr = new JsonArray();
+                    for (long cardId : integratedAPI.cardAPI.cardIdsForNote(noteId)) {
+                        cardsArr.add(cardId);
+                    }
+                    noteObj.add("cards", cardsArr);
+                    result.add(noteObj);
+                }
+            }
+        }
+        return Parser.gson.toJson(result);
     }
 
     /**
