@@ -121,6 +121,8 @@ public class AnkiAPIRouting {
                 }
 
                 return Parser.gson.toJson(results);
+            case "sync":
+                return sync();
             case "requestPermission":
                 return requestPermission();
             case "deleteNotes":
@@ -473,6 +475,17 @@ public class AnkiAPIRouting {
      * permission so that clients (e.g. the KOReader anki.koplugin) connect
      * online instead of falling back to offline mode. No AnkiDroid call needed.
      */
+    /**
+     * Trigger an AnkiWeb sync. AnkiDroid only exposes this via its fire-and-forget
+     * "com.ichi2.anki.DO_SYNC" intent (see {@link IntegratedAPI#sync()}), so unlike desktop
+     * AnkiConnect this cannot wait for the sync to finish or surface its errors. Returns null
+     * like desktop.
+     */
+    private String sync() {
+        integratedAPI.sync();
+        return "null";
+    }
+
     private String requestPermission() {
         JsonObject result = new JsonObject();
         result.addProperty("permission", "granted");

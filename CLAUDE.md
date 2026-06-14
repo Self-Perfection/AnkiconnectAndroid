@@ -10,6 +10,20 @@ errors. Full plan: `../AnkiconnectAndroid-improvement-plan.md`; **coverage matri
 [`docs/coverage.md`](docs/coverage.md)** (in-repo; keep it in sync with the router's
 `switch` when you add or change an action).
 
+## Keep the docs in sync
+
+Any change to which actions exist or how they behave **must update the docs in the
+same commit** — they are the contract clients read, and a stale matrix is worse than
+none:
+- [`docs/coverage.md`](docs/coverage.md) — the 122-action matrix (✅/⚠️/🚫/❌, the
+  per-action note, and the headline count). It must always match the router's `switch`.
+- [`docs/api.md`](docs/api.md) — the prose page for implemented actions; add/adjust an
+  entry whenever an action's client-visible behaviour changes, especially when it
+  **differs from desktop AnkiConnect** (spell the difference out).
+
+More generally: when behaviour, build, or workflow changes, update whatever doc
+describes it (this `CLAUDE.md`, `tests-android/`, the README) rather than letting it drift.
+
 ## Architecture
 
 HTTP server (NanoHTTPD). Dispatcher: `routing/AnkiAPIRouting.findRoute()` — a big

@@ -122,3 +122,12 @@ Do not expect the error message to be the exact same as the PC Anki-Connect erro
 ### `multi`
 * See: [Anki-Connect `multi`](https://git.sr.ht/~foosoft/anki-connect#codemulticode)
 * Used by Yomichan
+
+### `sync`
+* See: [Anki-Connect `sync`](https://git.sr.ht/~foosoft/anki-connect#codesynccode)
+* **Differs from desktop.** Triggers an AnkiWeb sync by firing AnkiDroid's
+  `com.ichi2.anki.DO_SYNC` intent (the same hook Tasker uses). This is
+  fire-and-forget: it brings AnkiDroid to the foreground and returns `null`
+  immediately — it cannot wait for the sync to finish or report sync errors.
+  AnkiDroid rate-limits it to roughly one sync every 2 minutes, and the user must
+  already be logged in to AnkiWeb in AnkiDroid.

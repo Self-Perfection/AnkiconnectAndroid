@@ -583,5 +583,24 @@ public class IntegratedAPI {
     public ArrayList<Long> guiEditNote(long note_id) {
         return guiBrowse("nid:" + note_id);
     }
+
+    /**
+     * sync: trigger a synchronisation of AnkiDroid's collection with AnkiWeb.
+     *
+     * AnkiDroid exposes no provider/AddContentApi hook for syncing; the only way another app can
+     * start a sync is its public "com.ichi2.anki.DO_SYNC" intent (the same one Tasker uses), which
+     * AnkiDroid's IntentHandler turns into a DeckPicker sync. Unlike desktop AnkiConnect's sync,
+     * this is fire-and-forget: it cannot block until the sync finishes, report errors, or return a
+     * result, and AnkiDroid rate-limits it to one sync per ~2 minutes. It also brings AnkiDroid to
+     * the foreground, and the user must already be logged in to AnkiWeb. We mirror desktop by
+     * returning null regardless.
+     */
+    public void sync() {
+        Intent syncIntent = new Intent("com.ichi2.anki.DO_SYNC");
+        syncIntent.setPackage("com.ichi2.anki");
+        // Started from outside an Activity, so a new task is required (as in guiBrowse).
+        syncIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(syncIntent);
+    }
 }
 

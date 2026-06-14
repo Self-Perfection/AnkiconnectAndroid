@@ -10,7 +10,7 @@ Which of desktop [AnkiConnect](https://git.sr.ht/~foosoft/anki-connect#supported
 is pinned by `tests-android/test_schema_parity.py` against the desktop oracle.
 Keep this table in sync when you add or change an action.
 
-**Status: 26 of 122 actions return a usable result** (25 full ✅ + 1 degraded ⚠️).
+**Status: 27 of 122 actions return a usable result** (25 full ✅ + 2 degraded ⚠️).
 3 more return an explicit *not supported* error 🚫 instead of silent garbage.
 
 | Mark | Meaning |
@@ -207,7 +207,7 @@ Keep this table in sync when you add or change an action.
 | `importPackage` | ✅ | ❌ | |
 | `loadProfile` | ✅ | ❌ | |
 | `reloadCollection` | ✅ | ❌ | |
-| `sync` | ✅ | ❌ | |
+| `sync` | ✅ | ⚠️ | Fires AnkiDroid's `com.ichi2.anki.DO_SYNC` intent (the Tasker hook). Fire-and-forget: brings AnkiDroid to the foreground, can't wait for completion or report errors, rate-limited to ~1/2min, and needs the user already logged in to AnkiWeb. Returns null. |
 
 ## Misc
 
