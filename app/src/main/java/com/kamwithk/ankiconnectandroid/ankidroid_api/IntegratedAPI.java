@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -147,21 +146,26 @@ public class IntegratedAPI {
                 TextUtils.join(",", checksums)
         );
 
-        final Cursor cursor = context.getContentResolver().query(
+        boolean deckScope = noteOptions.getDuplicateScope().equals("deck");
+        LinkedHashSet<Long> queryChecksums = new LinkedHashSet<>();
+        // Each matching row carries the note id and its first-field checksum.
+        List<long[]> rows = CursorUtil.queryList(
+                context.getContentResolver(),
                 FlashCardsContract.Note.CONTENT_URI_V2,
                 NOTE_PROJECTION,
                 selectionQuery,
-                null,
-                null
-        );
-
-        LinkedHashSet<Long> queryChecksums;
-        if (cursor == null || cursor.getCount() == 0) {
-            queryChecksums = new LinkedHashSet<>();
-        } else {
-            queryChecksums = findChecksumsInQuery(
-                    cursor,
-                    noteOptions.getDuplicateScope().equals("deck"), deckIds);
+                c -> new long[]{
+                        c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Note._ID)),
+                        c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Note.CSUM))
+                });
+        // If scope is "deck", a matching checksum only counts when that note is actually in the
+        // target deck (an extra per-note card lookup). Otherwise every returned checksum counts.
+        for (long[] row : rows) {
+            long queryNid = row[0];
+            long queryCsum = row[1];
+            if (!deckScope || isNoteInDeck(queryNid, deckIds)) {
+                queryChecksums.add(queryCsum);
+            }
         }
 
         // Decide per note: it can be added if it is valid (non-empty) and either
@@ -178,57 +182,18 @@ public class IntegratedAPI {
         return canAddNote;
     }
 
-    private LinkedHashSet<Long> findChecksumsInQuery(Cursor cursor, boolean isDuplicateScopeDeck, Set<Long> deckIds) {
-        LinkedHashSet<Long> queryChecksums = new LinkedHashSet<>();
-
-        try (cursor) {
-            while (cursor.moveToNext()) {
-                // Build list of CSUM (queryChecksums)
-                // If an entry in queryChecksums is in checksums, then we have a duplicate
-                // If scope is "deck", these duplicates need to be checked again for the deck
-                int idIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note._ID);
-                int csumIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.CSUM);
-
-                long queryNid = cursor.getLong(idIdx);
-                long queryCsum = cursor.getLong(csumIdx);
-
-                // If duplicate scope is "deck", need an additional query
-                if (!isDuplicateScopeDeck || isNoteInDeck(queryNid, deckIds)) {
-                    queryChecksums.add(queryCsum);
-                }
-            }
-        }
-
-        return queryChecksums;
-    }
-
     private boolean isNoteInDeck(long noteId, Set<Long> deckIds) {
         // Need to search for all cards with the same note ID, and see if they exist in one of the decks.
         final String[] CARD_PROJECTION = {FlashCardsContract.Card.DECK_ID};
 
         Uri noteUri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, Long.toString(noteId));
         Uri cardUri = Uri.withAppendedPath(noteUri, "cards");
-        Cursor cardCursor = context.getContentResolver().query(
-                cardUri,
-                CARD_PROJECTION,
-                null,
-                null,
-                null
-        );
-
-        if(cardCursor != null) {
-            try (cardCursor) {
-                while(cardCursor.moveToNext()) {
-                    int didIdx = cardCursor.getColumnIndexOrThrow(FlashCardsContract.Card.DECK_ID);
-                    long did = cardCursor.getLong(didIdx);
-
-                    if (deckIds.contains(did)) {
-                        return true;
-                    }
-                }
+        for (long did : CursorUtil.queryList(context.getContentResolver(), cardUri, CARD_PROJECTION, null,
+                c -> c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Card.DECK_ID)))) {
+            if (deckIds.contains(did)) {
+                return true;
             }
         }
-
         return false;
     }
 
@@ -238,30 +203,18 @@ public class IntegratedAPI {
      * device), but returns note IDs so the caller can filter by deck.
      */
     private Set<Long> noteIdsWithChecksum(long modelId, long checksum) {
-        Set<Long> ids = new HashSet<>();
         String selection = String.format(
                 Locale.US,
                 "%s=%d and %s=%d",
                 FlashCardsContract.Note.MID, modelId,
                 FlashCardsContract.Note.CSUM, checksum
         );
-        Cursor cursor = context.getContentResolver().query(
+        return new HashSet<>(CursorUtil.queryList(
+                context.getContentResolver(),
                 FlashCardsContract.Note.CONTENT_URI_V2,
                 new String[]{FlashCardsContract.Note._ID},
                 selection,
-                null,
-                null
-        );
-        if (cursor == null) {
-            return ids;
-        }
-        try (cursor) {
-            int idIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Note._ID);
-            while (cursor.moveToNext()) {
-                ids.add(cursor.getLong(idIdx));
-            }
-        }
-        return ids;
+                c -> c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Note._ID))));
     }
 
     /**

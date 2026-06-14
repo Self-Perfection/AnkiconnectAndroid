@@ -163,17 +163,8 @@ public class CardAPI {
         if (supportsCardsUri()) {
             return findCards("nid:" + noteId);
         }
-        List<Long> cardIds = new ArrayList<>();
-        Cursor cursor = resolver.query(cardsUriForNote(noteId), CARD_ORD_PROJECTION, null, null, null);
-        if (cursor != null) {
-            try (cursor) {
-                while (cursor.moveToNext()) {
-                    int ordIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Card.CARD_ORD);
-                    cardIds.add(makeCardId(noteId, cursor.getInt(ordIdx)));
-                }
-            }
-        }
-        return cardIds;
+        return CursorUtil.queryList(resolver, cardsUriForNote(noteId), CARD_ORD_PROJECTION, null,
+                c -> makeCardId(noteId, c.getInt(c.getColumnIndexOrThrow(FlashCardsContract.Card.CARD_ORD))));
     }
 
     /**
@@ -182,22 +173,9 @@ public class CardAPI {
      */
     public List<Long> findCards(String query) {
         if (supportsCardsUri()) {
-            List<Long> cardIds = new ArrayList<>();
-            Cursor cursor = resolver.query(
-                    FlashCardsContract.Card.CONTENT_URI,
-                    new String[]{FlashCardsContract.Card._ID},
-                    query,
-                    null,
-                    null);
-            if (cursor != null) {
-                try (cursor) {
-                    int idIdx = cursor.getColumnIndexOrThrow(FlashCardsContract.Card._ID);
-                    while (cursor.moveToNext()) {
-                        cardIds.add(cursor.getLong(idIdx));
-                    }
-                }
-            }
-            return cardIds;
+            return CursorUtil.queryList(resolver, FlashCardsContract.Card.CONTENT_URI,
+                    new String[]{FlashCardsContract.Card._ID}, query,
+                    c -> c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Card._ID)));
         }
 
         List<Long> cardIds = new ArrayList<>();
@@ -288,26 +266,20 @@ public class CardAPI {
         long noteId = cardIdToNoteId(cardId);
         int wantedOrd = cardIdToOrd(cardId);
 
-        Cursor cursor = resolver.query(cardsUriForNote(noteId), SYNTHETIC_CARD_INFO_PROJECTION, null, null, null);
-        if (cursor == null) {
-            return null;
-        }
-        try (cursor) {
-            while (cursor.moveToNext()) {
-                int ord = cursor.getInt(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.CARD_ORD));
-                if (ord != wantedOrd) {
-                    continue;
-                }
-                return new CardInfo(
+        List<CardInfo> cards = CursorUtil.queryList(resolver, cardsUriForNote(noteId),
+                SYNTHETIC_CARD_INFO_PROJECTION, null,
+                c -> new CardInfo(
                         cardId,
-                        ord,
-                        cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.CARD_NAME)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.QUESTION)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.ANSWER)),
-                        cursor.getLong(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.NOTE_ID)),
-                        cursor.getLong(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.DECK_ID)),
-                        null, null, null, null, null, null, null, null
-                );
+                        c.getInt(c.getColumnIndexOrThrow(FlashCardsContract.Card.CARD_ORD)),
+                        c.getString(c.getColumnIndexOrThrow(FlashCardsContract.Card.CARD_NAME)),
+                        c.getString(c.getColumnIndexOrThrow(FlashCardsContract.Card.QUESTION)),
+                        c.getString(c.getColumnIndexOrThrow(FlashCardsContract.Card.ANSWER)),
+                        c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Card.NOTE_ID)),
+                        c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Card.DECK_ID)),
+                        null, null, null, null, null, null, null, null));
+        for (CardInfo info : cards) {
+            if (info.ord == wantedOrd) {
+                return info;
             }
         }
         return null;
@@ -334,19 +306,11 @@ public class CardAPI {
 
         // One query for all ids; cid: matches existing cards only, so missing ids are simply absent.
         Map<Long, CardInfo> byId = new HashMap<>();
-        Cursor cursor = resolver.query(
-                FlashCardsContract.Card.CONTENT_URI,
-                REAL_CARD_INFO_PROJECTION,
-                "cid:" + TextUtils.join(",", cardIds),
-                null,
-                null);
-        if (cursor != null) {
-            try (cursor) {
-                while (cursor.moveToNext()) {
-                    CardInfo info = realCardInfoFromCursor(cursor);
-                    byId.put(info.cardId, info);
-                }
-            }
+        List<CardInfo> rows = CursorUtil.queryList(resolver, FlashCardsContract.Card.CONTENT_URI,
+                REAL_CARD_INFO_PROJECTION, "cid:" + TextUtils.join(",", cardIds),
+                this::realCardInfoFromCursor);
+        for (CardInfo info : rows) {
+            byId.put(info.cardId, info);
         }
 
         List<CardInfo> result = new ArrayList<>(cardIds.size());

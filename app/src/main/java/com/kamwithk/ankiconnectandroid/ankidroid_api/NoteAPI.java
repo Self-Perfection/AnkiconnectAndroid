@@ -81,20 +81,8 @@ public class NoteAPI {
         // https://github.com/ankidroid/Anki-Android/blob/1711e56c2b5515ab89c3424b60e60867bb65d492/api/src/main/java/com/ichi2/anki/api/AddContentApi.kt#L244
 
         Uri noteUri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, Long.toString(note_id));
-        Cursor cursor = this.resolver.query(noteUri, MODEL_PROJECTION, null, null, null);
-
-        if (cursor == null) {
-            return null;
-        }
-        try {
-            if (!cursor.moveToNext()) {
-                return null;
-            }
-            int index = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.MID);;
-            return cursor.getLong(index); // mid
-        } finally {
-            cursor.close();
-        }
+        return CursorUtil.queryFirst(resolver, noteUri, MODEL_PROJECTION, null,
+                c -> c.getLong(c.getColumnIndexOrThrow(FlashCardsContract.Note.MID)), null);
     }
 
     /**
@@ -103,19 +91,9 @@ public class NoteAPI {
      */
     public Set<String> getNoteTags(long note_id) {
         Uri noteUri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, Long.toString(note_id));
-        Cursor cursor = this.resolver.query(noteUri, TAGS_PROJECTION, null, null, null);
-
-        LinkedHashSet<String> tags = new LinkedHashSet<>();
-        if (cursor == null) {
-            return tags;
-        }
-        try (cursor) {
-            if (!cursor.moveToNext()) {
-                return tags;
-            }
-            int index = cursor.getColumnIndexOrThrow(FlashCardsContract.Note.TAGS);
-            String raw = cursor.getString(index);
-            String[] split = Utility.splitTags(raw);
+        return CursorUtil.queryFirst(resolver, noteUri, TAGS_PROJECTION, null, c -> {
+            Set<String> tags = new LinkedHashSet<>();
+            String[] split = Utility.splitTags(c.getString(c.getColumnIndexOrThrow(FlashCardsContract.Note.TAGS)));
             if (split != null) {
                 for (String tag : split) {
                     if (!tag.isEmpty()) {
@@ -123,8 +101,8 @@ public class NoteAPI {
                     }
                 }
             }
-        }
-        return tags;
+            return tags;
+        }, new LinkedHashSet<>());
     }
 
     /**
@@ -139,29 +117,8 @@ public class NoteAPI {
     }
 
     public ArrayList<Long> findNotes(String query) {
-        ArrayList<Long> noteIds = new ArrayList<>();
-
-        final Cursor cursor = this.resolver.query(
-                FlashCardsContract.Note.CONTENT_URI,
-                NOTE_ID_PROJECTION,
-                query,
-                null,
-                null
-        );
-
-        if (cursor != null) {
-            if (!cursor.moveToFirst()) {
-                return noteIds;
-            }
-            for (int i = 0; i < cursor.getCount(); i++) {
-                long id = cursor.getLong(0);
-                noteIds.add(id);
-                cursor.moveToNext();
-            }
-            cursor.close();
-        }
-
-        return noteIds;
+        return new ArrayList<>(CursorUtil.queryList(resolver, FlashCardsContract.Note.CONTENT_URI,
+                NOTE_ID_PROJECTION, query, c -> c.getLong(0)));
     }
 
     static class NoteInfoField {
