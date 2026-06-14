@@ -29,3 +29,27 @@ def test_unsupported_action_clean_error(anki):
     assert "\tat " not in message
     assert "\n\tat" not in message
     assert "Exception:" not in message
+
+
+@pytest.mark.parametrize(
+    "action", ["findCards", "findNotes", "guiBrowse", "cardsInfo", "notesInfo", "addTags"]
+)
+def test_missing_param_clean_error(anki, action):
+    # Calling an action without its required parameter must yield a clean error
+    # envelope on every server, never a Java NullPointerException. This is the
+    # regression for the original "...getAsString() on a null object reference" NPE
+    # (a request that used the wrong parameter name).
+    #
+    # The exact text differs by server (desktop: "...got an unexpected keyword
+    # argument '<name>'"; AnkiconnectAndroid: "missing required parameter:
+    # '<name>'"), so the everywhere-true assertion is only that it errors cleanly,
+    # with no NPE / stack-trace artefacts.
+    with pytest.raises(client.AnkiConnectError) as exc_info:
+        anki(action, bogusParam="x")
+
+    message = str(exc_info.value)
+    assert message
+    assert "NullPointerException" not in message
+    assert "on a null object reference" not in message
+    assert "\tat " not in message
+    assert "\n\tat" not in message

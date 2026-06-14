@@ -21,12 +21,73 @@ public class Parser {
     public static Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
     public static Gson gsonNoSerialize = new GsonBuilder().setPrettyPrinting().create();
 
+    /**
+     * Thrown when a request omits a required parameter or supplies it with the wrong JSON shape.
+     * Unchecked so the existing parser/handler signatures don't all need {@code throws}; the
+     * router's catch-all ({@code AnkiAPIRouting.findRouteHandleError}) turns it into a clean
+     * {@code {result:null, error:<message>}} reply instead of leaking a Java NPE message like
+     * "...getAsString() on a null object reference". Desktop AnkiConnect reports the same class of
+     * mistake clearly (e.g. "guiBrowse() got an unexpected keyword argument 'note'").
+     */
+    public static class MissingParamException extends RuntimeException {
+        public MissingParamException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * The "params" object of a request. Like desktop AnkiConnect (which does
+     * {@code request.get('params', {})}), a missing "params" is treated as empty rather than an
+     * error — actions whose parameters are all optional then still work. A present-but-non-object
+     * "params" is a clear error.
+     */
+    private static JsonObject params(JsonObject raw_data) {
+        JsonElement params = raw_data.get("params");
+        if (params == null || params.isJsonNull()) {
+            return new JsonObject();
+        }
+        if (!params.isJsonObject()) {
+            throw new MissingParamException("'params' must be an object");
+        }
+        return params.getAsJsonObject();
+    }
+
+    /** A required member, named in the error if absent/null. */
+    private static JsonElement required(JsonObject obj, String name) {
+        JsonElement value = obj.get(name);
+        if (value == null || value.isJsonNull()) {
+            throw new MissingParamException("missing required parameter: '" + name + "'");
+        }
+        return value;
+    }
+
+    /** A required member that must be a JSON object. */
+    private static JsonObject requiredObject(JsonObject obj, String name) {
+        JsonElement value = required(obj, name);
+        if (!value.isJsonObject()) {
+            throw new MissingParamException("parameter '" + name + "' must be an object");
+        }
+        return value.getAsJsonObject();
+    }
+
+    /** A required member that must be a JSON array. */
+    private static JsonArray requiredArray(JsonObject obj, String name) {
+        JsonElement value = required(obj, name);
+        if (!value.isJsonArray()) {
+            throw new MissingParamException("parameter '" + name + "' must be an array");
+        }
+        return value.getAsJsonArray();
+    }
+
     public static JsonObject parse(String raw_data) {
         return JsonParser.parseString(raw_data).getAsJsonObject();
     }
 
     public static String get_action(JsonObject data) {
-        return data.get("action").getAsString();
+        // Mirror desktop's request.get('action', ''): a missing action degrades to "" (→ the
+        // router's "unsupported action" path) rather than an NPE.
+        JsonElement action = data.get("action");
+        return action == null || action.isJsonNull() ? "" : action.getAsString();
     }
 
     public static int get_version(JsonObject data, int fallback) {
@@ -37,44 +98,51 @@ public class Parser {
     }
 
     public static String getDeckName(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("deckName").getAsString();
+        JsonObject note = requiredObject(params(raw_data), "note");
+        return required(note, "deckName").getAsString();
     }
 
     public static String getModelName(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("modelName").getAsString();
+        JsonObject note = requiredObject(params(raw_data), "note");
+        return required(note, "modelName").getAsString();
     }
 
     public static String getModelNameFromParam(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("modelName").getAsString();
+        return required(params(raw_data), "modelName").getAsString();
     }
 
     // params.deck — used by changeDeck ({cards, deck}) and createDeck ({deck}).
     // changeDeck's cards reuse getCardIds.
     public static String getDeckParam(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("deck").getAsString();
+        return required(params(raw_data), "deck").getAsString();
     }
 
     public static Map<String, String> getNoteValues(JsonObject raw_data) {
         Type fieldType = new TypeToken<Map<String, String>>() {}.getType();
-        return gson.fromJson(raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("fields"), fieldType);
+        JsonObject note = requiredObject(params(raw_data), "note");
+        return gson.fromJson(required(note, "fields"), fieldType);
     }
 
     public static Set<String> getNoteTags(JsonObject raw_data) {
         Type fieldType = new TypeToken<Set<String>>() {}.getType();
-        return gson.fromJson(raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("tags"), fieldType);
+        JsonObject note = requiredObject(params(raw_data), "note");
+        // tags are optional (desktop defaults to []); fromJson(null) -> null, preserved.
+        return gson.fromJson(note.get("tags"), fieldType);
     }
 
     public static String getNoteQuery(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("query").getAsString();
+        return required(params(raw_data), "query").getAsString();
     }
 
     public static long getUpdateNoteFieldsId(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("id").getAsLong();
+        JsonObject note = requiredObject(params(raw_data), "note");
+        return required(note, "id").getAsLong();
     }
 
     public static Map<String, String> getUpdateNoteFieldsFields(JsonObject raw_data) {
         Type fieldType = new TypeToken<Map<String, String>>() {}.getType();
-        return gson.fromJson(raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("fields"), fieldType);
+        JsonObject note = requiredObject(params(raw_data), "note");
+        return gson.fromJson(required(note, "fields"), fieldType);
     }
 
     /**
@@ -89,7 +157,7 @@ public class Parser {
             "video", MediaRequest.MediaType.VIDEO,
             "picture", MediaRequest.MediaType.PICTURE
         );
-        JsonObject note_json = raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject();
+        JsonObject note_json = requiredObject(params(raw_data), "note");
 
         ArrayList<MediaRequest> request_medias = new ArrayList<>();
         for (Map.Entry<String, MediaRequest.MediaType> entry: media_types.entrySet()) {
@@ -117,7 +185,7 @@ public class Parser {
      * so the duplicate/options handling used by canAddNotes can be reused.
      */
     public static NoteRequest getSingleNoteRequest(JsonObject raw_data) {
-        JsonElement note = raw_data.get("params").getAsJsonObject().get("note");
+        JsonElement note = required(params(raw_data), "note");
         return NoteRequest.fromJson(note);
     }
 
@@ -125,7 +193,7 @@ public class Parser {
      * Gets the first field of the note
      */
     public static ArrayList<NoteRequest> getNoteFront(JsonObject raw_data) {
-        JsonArray notes = raw_data.get("params").getAsJsonObject().get("notes").getAsJsonArray();
+        JsonArray notes = requiredArray(params(raw_data), "notes");
         ArrayList<NoteRequest> projections = new ArrayList<>();
 
         for (JsonElement jsonElement : notes) {
@@ -136,7 +204,7 @@ public class Parser {
     }
 
     public static boolean[] getNoteTrues(JsonObject raw_data) {
-        int num_notes = raw_data.get("params").getAsJsonObject().get("notes").getAsJsonArray().size();
+        int num_notes = requiredArray(params(raw_data), "notes").size();
         boolean[] array = new boolean[num_notes];
         Arrays.fill(array, true);
 
@@ -145,7 +213,7 @@ public class Parser {
 
     public static ArrayList<Long> getNoteIds(JsonObject raw_data) {
         ArrayList<Long> noteIds = new ArrayList<>();
-        JsonArray jsonNoteIds = raw_data.get("params").getAsJsonObject().get("notes").getAsJsonArray();
+        JsonArray jsonNoteIds = requiredArray(params(raw_data), "notes");
         for(JsonElement noteId: jsonNoteIds) {
             noteIds.add(noteId.getAsLong());
         }
@@ -157,7 +225,7 @@ public class Parser {
      * absent property so the caller can enforce "at least one of fields/tags".
      */
     public static Map<String, String> getUpdateNoteFieldsOptional(JsonObject raw_data) {
-        JsonObject note = raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject();
+        JsonObject note = requiredObject(params(raw_data), "note");
         if (!note.has("fields") || note.get("fields").isJsonNull()) {
             return null;
         }
@@ -166,7 +234,7 @@ public class Parser {
     }
 
     public static Set<String> getUpdateNoteTagsOptional(JsonObject raw_data) {
-        JsonObject note = raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject();
+        JsonObject note = requiredObject(params(raw_data), "note");
         if (!note.has("tags") || note.get("tags").isJsonNull()) {
             return null;
         }
@@ -175,14 +243,15 @@ public class Parser {
     }
 
     public static long getNoteId(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("note").getAsJsonObject().get("id").getAsLong();
+        JsonObject note = requiredObject(params(raw_data), "note");
+        return required(note, "id").getAsLong();
     }
 
     /**
      * addTags takes notes: [ids] (parsed by {@link #getNoteIds}) and tags: "space separated".
      */
     public static String getTags(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("tags").getAsString();
+        return required(params(raw_data), "tags").getAsString();
     }
 
     /**
@@ -190,7 +259,7 @@ public class Parser {
      */
     public static ArrayList<Long> getCardIds(JsonObject raw_data) {
         ArrayList<Long> cardIds = new ArrayList<>();
-        JsonArray jsonCardIds = raw_data.get("params").getAsJsonObject().get("cards").getAsJsonArray();
+        JsonArray jsonCardIds = requiredArray(params(raw_data), "cards");
         for (JsonElement cardId : jsonCardIds) {
             cardIds.add(cardId.getAsLong());
         }
@@ -198,20 +267,19 @@ public class Parser {
     }
 
     public static long getGuiEditNoteId(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("note").getAsLong();
+        return required(params(raw_data), "note").getAsLong();
     }
 
     public static String getMediaFilename(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("filename").getAsString();
+        return required(params(raw_data), "filename").getAsString();
     }
 
     public static byte[] getMediaData(JsonObject raw_data) {
-        String encoded = raw_data.get("params").getAsJsonObject().get("data").getAsString();
+        String encoded = required(params(raw_data), "data").getAsString();
         return Base64.decode(encoded, Base64.DEFAULT);
     }
 
     public static JsonArray getMultiActions(JsonObject raw_data) {
-        return raw_data.get("params").getAsJsonObject().get("actions").getAsJsonArray();
+        return requiredArray(params(raw_data), "actions");
     }
 }
-
