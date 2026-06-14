@@ -64,6 +64,13 @@
             app:iconSpaceReserved="false"
             app:title="@string/settings_other_header">
 
+        <SwitchPreferenceCompat
+            app:iconSpaceReserved="false"
+            app:key="show_toasts"
+            app:defaultValue="true"
+            app:title="@string/settings_show_toasts_title"
+            app:summary="@string/settings_show_toasts_summary" />
+
         <ListPreference
             app:iconSpaceReserved="false"
             app:key="forvo_language"

@@ -3,6 +3,7 @@ package com.kamwithk.ankiconnectandroid.ankidroid_api;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -12,6 +13,7 @@ import android.text.TextUtils;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.preference.PreferenceManager;
 
 import java.io.IOException;
 import java.util.*;
@@ -368,13 +370,41 @@ public class IntegratedAPI {
         if (note_id != null) {
             // Show the first field's text so the user can tell what was added.
             String firstField = firstFieldText(model_id, data);
-            final String message = firstField.isEmpty() ? "Note added" : "Note added: " + firstField;
-            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show());
+            showToast(firstField.isEmpty() ? "Note added" : "Note added: " + firstField);
             return note_id;
         } else {
-            new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Failed to add note", Toast.LENGTH_SHORT).show());
+            showToast("Failed to add note");
             throw new Exception("Couldn't add note");
         }
+    }
+
+    /**
+     * Posts a short Toast, unless the user disabled them via the "show_toasts" preference
+     * (default on). Used to surface note add/delete on screen. Always posts to the main looper.
+     */
+    private void showToast(final String message) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        if (!prefs.getBoolean("show_toasts", true)) {
+            return;
+        }
+        new Handler(Looper.getMainLooper()).post(
+                () -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show());
+    }
+
+    /**
+     * Plain text of a note's first (sort) field, for display in a toast. Best-effort:
+     * returns "" if the note can't be read (deletion still proceeds).
+     */
+    private String firstFieldTextForNote(long noteId) {
+        try {
+            String[] fields = noteAPI.getNoteFields(noteId);
+            if (fields != null && fields.length > 0) {
+                return Utility.stripToText(fields[0]);
+            }
+        } catch (Exception e) {
+            // Ignore: the toast label is non-essential.
+        }
+        return "";
     }
 
     /**
@@ -547,9 +577,13 @@ public class IntegratedAPI {
      */
     public void deleteNotes(List<Long> noteIds) {
         for (Long noteId : noteIds) {
+            // Read the first field before deleting, so the toast can say which note went
+            // (mirrors the "Note added: <field>" toast). After deletion it can't be read.
+            String firstField = firstFieldTextForNote(noteId);
             Uri noteUri = Uri.withAppendedPath(
                     FlashCardsContract.Note.CONTENT_URI, String.valueOf(noteId));
             context.getContentResolver().delete(noteUri, null, null);
+            showToast(firstField.isEmpty() ? "Note deleted" : "Note deleted: " + firstField);
         }
     }
 
